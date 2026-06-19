@@ -3,6 +3,7 @@ import { Package, Search, Plus, Archive, Edit2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Role } from '../types/auth';
+import { ProductModal } from '../components/ProductModal';
 
 export const Products: React.FC = () => {
   const { user } = useAuth();
@@ -12,13 +13,18 @@ export const Products: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await api.get(endpoint, { params: { search } });
-      // Depending on backend structure, data might be in res.data.data.items or similar.
-      setProducts(res.data.data?.items || res.data.data || []);
+      const params: any = { search };
+      if (statusFilter) params.status = statusFilter;
+      const res = await api.get(endpoint, { params });
+      setProducts(res.data.data?.items || res.data.data?.data || res.data.data || []);
     } catch (err) {
       console.error('Failed to fetch products', err);
     } finally {
@@ -28,7 +34,28 @@ export const Products: React.FC = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, [endpoint, search]);
+  }, [endpoint, search, statusFilter]);
+
+  const handleArchive = async (id: string) => {
+    if (!window.confirm('Are you sure you want to archive this product?')) return;
+    try {
+      await api.delete(`/products/${id}`);
+      fetchProducts();
+    } catch (err) {
+      console.error('Failed to archive product', err);
+      alert('Failed to archive product');
+    }
+  };
+
+  const handleEdit = (product: any) => {
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const handleAdd = () => {
+    setEditingProduct(null);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -38,7 +65,7 @@ export const Products: React.FC = () => {
           <p className="text-muted mt-md">Manage your product catalog, view analytics and stock.</p>
         </div>
         {isVendor && (
-          <button className="btn btn-primary">
+          <button className="btn btn-primary" onClick={handleAdd}>
             <Plus size={20} /> Add Product
           </button>
         )}
@@ -58,7 +85,7 @@ export const Products: React.FC = () => {
             />
           </div>
           {isVendor && (
-            <select className="form-control" style={{ width: 'auto' }}>
+            <select className="form-control" style={{ width: 'auto' }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
               <option value="">All Statuses</option>
               <option value="ACTIVE">Active</option>
               <option value="ARCHIVED">Archived</option>
@@ -109,10 +136,10 @@ export const Products: React.FC = () => {
                     {isVendor && <td>${product.analytics?.revenue || 0}</td>}
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-secondary btn-icon" title="Edit">
+                        <button className="btn btn-secondary btn-icon" title="Edit" onClick={() => handleEdit(product)}>
                           <Edit2 size={16} />
                         </button>
-                        <button className="btn btn-danger btn-icon" title="Archive">
+                        <button className="btn btn-danger btn-icon" title="Archive" onClick={() => handleArchive(product.id)}>
                           <Archive size={16} />
                         </button>
                       </div>
@@ -129,6 +156,13 @@ export const Products: React.FC = () => {
           </div>
         )}
       </div>
+
+      <ProductModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSaved={fetchProducts} 
+        product={editingProduct} 
+      />
     </div>
   );
 };

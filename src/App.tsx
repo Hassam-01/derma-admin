@@ -7,6 +7,14 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Products } from './pages/Products';
 import { Leaderboard } from './pages/Leaderboard';
+import { Users } from './pages/Users';
+import { Orders } from './pages/Orders';
+import { Categories } from './pages/Categories';
+import { Ingredients } from './pages/Ingredients';
+import { Customers } from './pages/Customers';
+import { Locations } from './pages/Locations';
+import { Coupons } from './pages/Coupons';
+import { Settings } from './pages/Settings';
 import { Role } from './types/auth';
 
 const App: React.FC = () => {
@@ -25,7 +33,10 @@ const App: React.FC = () => {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="products" element={<Products />} />
-            {/* Stubs for other routes */}
+            <Route path="orders" element={<Orders />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="locations" element={<Locations />} />
+            <Route path="coupons" element={<Coupons />} />
             <Route path="*" element={<div>Coming Soon</div>} />
           </Route>
 
@@ -39,7 +50,14 @@ const App: React.FC = () => {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="products" element={<Products />} />
             <Route path="leaderboard" element={<Leaderboard />} />
-            {/* Stubs for other routes */}
+            <Route path="users" element={<Users />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="categories" element={<Categories />} />
+            <Route path="ingredients" element={<Ingredients />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="locations" element={<Locations />} />
+            <Route path="coupons" element={<Coupons />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="*" element={<div>Coming Soon</div>} />
           </Route>
 

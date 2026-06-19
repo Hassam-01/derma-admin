@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, LayoutDashboard, Package, TrendingUp, Users, MapPin, Tag } from 'lucide-react';
+import { LogOut, LayoutDashboard, Package, TrendingUp, Users, MapPin, Tag, ShoppingCart, FolderTree, FlaskConical, Settings } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Role } from '../../types/auth';
 
@@ -25,7 +25,7 @@ export const Sidebar: React.FC = () => {
         <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{isVendor ? 'Vendor Portal' : 'Executive Portal'}</p>
       </div>
 
-      <nav style={{ flex: 1, padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <nav style={{ flex: 1, padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto' }}>
         <NavLink 
           to={`${basePath}/dashboard`} 
           className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
@@ -44,6 +44,24 @@ export const Sidebar: React.FC = () => {
           </NavLink>
         )}
 
+        {isExec && (
+          <NavLink 
+            to={`${basePath}/users`} 
+            className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
+            style={{ justifyContent: 'flex-start', border: 'none', background: 'transparent' }}
+          >
+            <Users size={20} /> Users
+          </NavLink>
+        )}
+
+        <NavLink 
+          to={`${basePath}/orders`} 
+          className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
+          style={{ justifyContent: 'flex-start', border: 'none', background: 'transparent' }}
+        >
+          <ShoppingCart size={20} /> Orders
+        </NavLink>
+
         <NavLink 
           to={`${basePath}/products`} 
           className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
@@ -51,6 +69,25 @@ export const Sidebar: React.FC = () => {
         >
           <Package size={20} /> Products
         </NavLink>
+
+        {isExec && (
+          <>
+            <NavLink 
+              to={`${basePath}/categories`} 
+              className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
+              style={{ justifyContent: 'flex-start', border: 'none', background: 'transparent' }}
+            >
+              <FolderTree size={20} /> Categories
+            </NavLink>
+            <NavLink 
+              to={`${basePath}/ingredients`} 
+              className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
+              style={{ justifyContent: 'flex-start', border: 'none', background: 'transparent' }}
+            >
+              <FlaskConical size={20} /> Ingredients
+            </NavLink>
+          </>
+        )}
 
         <NavLink 
           to={`${basePath}/customers`} 
@@ -75,6 +112,16 @@ export const Sidebar: React.FC = () => {
         >
           <Tag size={20} /> Coupons
         </NavLink>
+
+        {isExec && (
+          <NavLink 
+            to={`${basePath}/settings`} 
+            className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
+            style={{ justifyContent: 'flex-start', border: 'none', background: 'transparent' }}
+          >
+            <Settings size={20} /> Settings
+          </NavLink>
+        )}
       </nav>
 
       <div style={{ padding: '1.5rem 1rem', borderTop: '1px solid var(--border)' }}>

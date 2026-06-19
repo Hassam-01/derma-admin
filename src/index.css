@@ -1,33 +1,33 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Premium Dark Theme Palette */
-  --bg-base: #0f172a;
-  --bg-surface: #1e293b;
-  --bg-surface-elevated: #334155;
+  /* DermaLens Theme Palette */
+  --bg-base: #FAF7F2;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #F5F0E8;
   
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --primary-glow: rgba(99, 102, 241, 0.4);
+  --primary: #5C4A42;
+  --primary-hover: #493A34;
+  --primary-glow: rgba(92, 74, 66, 0.2);
   
-  --secondary: #ec4899;
-  --secondary-hover: #db2777;
+  --secondary: #E8A98A;
+  --secondary-hover: #D4866A;
   
-  --accent: #14b8a6;
+  --accent: #F2D9CC;
   
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
+  --text-main: #3A2E28;
+  --text-muted: #6B5650;
   
-  --border: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(99, 102, 241, 0.5);
+  --border: #E4D8CE;
+  --border-focus: rgba(92, 74, 66, 0.5);
 
-  --danger: #ef4444;
+  --danger: #A33D2A;
   --success: #10b981;
-  --warning: #f59e0b;
+  --warning: #7A5700;
 
   /* Glassmorphism */
-  --glass-bg: rgba(30, 41, 59, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(228, 216, 206, 0.5);
   --glass-blur: blur(12px);
 
   --radius-sm: 6px;
@@ -220,7 +220,7 @@ th {
   text-transform: uppercase;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 td {
@@ -234,7 +234,7 @@ tr:last-child td {
 }
 
 tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 /* Badges */
@@ -290,7 +290,7 @@ tr:hover td {
   background: var(--bg-base);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-surface-elevated);
+  background: var(--border);
   border-radius: var(--radius-full);
 }
 ::-webkit-scrollbar-thumb:hover {
