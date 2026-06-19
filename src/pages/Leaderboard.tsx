@@ -71,7 +71,7 @@ export const Leaderboard: React.FC = () => {
                       <div style={{ fontWeight: 500 }}>{vendor.name}</div>
                       <div className="text-muted" style={{ fontSize: '0.75rem' }}>{vendor.email}</div>
                     </td>
-                    <td style={{ fontWeight: 600 }}>${vendor.revenue || 0}</td>
+                    <td style={{ fontWeight: 600 }}>PKR {vendor.revenue || 0}</td>
                     <td>{vendor.unitsSold || 0}</td>
                     <td>{vendor.orderCount || 0}</td>
                     <td>

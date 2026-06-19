@@ -47,7 +47,7 @@ export const Dashboard: React.FC = () => {
       <div className="grid-cards">
         <div className="glass-panel flex-center" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
           <div className="text-muted" style={{ fontSize: '0.875rem' }}>Total Revenue</div>
-          <h3 style={{ fontSize: '2rem', margin: '0.5rem 0' }}>${kpis?.revenue?.total || 0}</h3>
+          <h3 style={{ fontSize: '2rem', margin: '0.5rem 0' }}>PKR {kpis?.revenue?.total || 0}</h3>
           <span className={`badge ${kpis?.revenue?.change > 0 ? 'badge-success' : 'badge-danger'}`}>
             {kpis?.revenue?.change > 0 ? '+' : ''}{kpis?.revenue?.change || 0}%
           </span>

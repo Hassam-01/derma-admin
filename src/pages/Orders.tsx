@@ -107,7 +107,7 @@ export const Orders: React.FC = () => {
                           ) : '-'}
                         </td>
                       )}
-                      <td>${total}</td>
+                      <td>PKR {total}</td>
                     </tr>
                   )
                 })}

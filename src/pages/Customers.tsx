@@ -88,7 +88,7 @@ export const Customers: React.FC = () => {
                       <td>{customer.email}</td>
                       <td>{customer.city || '-'}</td>
                       <td>{customer.totalOrders}</td>
-                      <td>${customer.totalSpent}</td>
+                      <td>PKR {customer.totalSpent}</td>
                       <td>{lastOrder}</td>
                     </tr>
                   )

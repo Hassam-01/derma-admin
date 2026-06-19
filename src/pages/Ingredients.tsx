@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { FlaskConical, Check, X, Info } from 'lucide-react';
+import ReactDOM from 'react-dom';
+import { FlaskConical, Check, X, Plus } from 'lucide-react';
 import { api } from '../lib/api';
 
 export const Ingredients: React.FC = () => {
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+
+  const [showModal, setShowModal] = useState(false);
+  const [newIng, setNewIng] = useState({
+    name: '',
+    aliases: '',
+    isComedogenic: false,
+    notRecommendedFor: '',
+    benefits: ''
+  });
 
   const fetchIngredients = async () => {
     try {
@@ -26,7 +36,6 @@ export const Ingredients: React.FC = () => {
   }, [statusFilter]);
 
   const handleApprove = async (id: string) => {
-    // Basic approval with empty metadata for now, can be expanded to a modal
     try {
       await api.patch(`/ingredients/${id}/approve`, {
         aliases: [],
@@ -52,6 +61,25 @@ export const Ingredients: React.FC = () => {
     }
   };
 
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/ingredients', {
+        name: newIng.name,
+        aliases: newIng.aliases ? newIng.aliases.split(',').map(s => s.trim()) : [],
+        isComedogenic: newIng.isComedogenic,
+        notRecommendedFor: newIng.notRecommendedFor ? newIng.notRecommendedFor.split(',').map(s => s.trim()) : [],
+        benefits: newIng.benefits ? newIng.benefits.split(',').map(s => s.trim()) : [],
+      });
+      setShowModal(false);
+      setNewIng({ name: '', aliases: '', isComedogenic: false, notRecommendedFor: '', benefits: '' });
+      fetchIngredients();
+    } catch (err: any) {
+      console.error('Failed to create ingredient', err);
+      alert(err.response?.data?.message || 'Failed to create ingredient');
+    }
+  };
+
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div className="flex-between">
@@ -59,6 +87,9 @@ export const Ingredients: React.FC = () => {
           <h2>Ingredients Dictionary</h2>
           <p className="text-muted mt-md">Manage the global dictionary of ingredients and vendor requests.</p>
         </div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+          <Plus size={20} /> Add Ingredient
+        </button>
       </div>
 
       <div className="glass-panel">
@@ -128,6 +159,71 @@ export const Ingredients: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Add Ingredient Modal */}
+      {showModal && ReactDOM.createPortal(
+        <div className="modal-overlay">
+          <div className="modal-content glass-panel" style={{ width: '450px' }}>
+            <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
+              <h3>Add Ingredient</h3>
+              <button className="btn-icon" onClick={() => setShowModal(false)}>Ã—</button>
+            </div>
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Name</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={newIng.name} 
+                  onChange={e => setNewIng({ ...newIng, name: e.target.value })} 
+                  required 
+                />
+              </div>
+              <div className="form-group">
+                <label>Aliases (comma separated)</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={newIng.aliases} 
+                  onChange={e => setNewIng({ ...newIng, aliases: e.target.value })} 
+                />
+              </div>
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input 
+                  type="checkbox" 
+                  id="isComedogenic"
+                  checked={newIng.isComedogenic} 
+                  onChange={e => setNewIng({ ...newIng, isComedogenic: e.target.checked })} 
+                />
+                <label htmlFor="isComedogenic" style={{ margin: 0 }}>Is Comedogenic?</label>
+              </div>
+              <div className="form-group">
+                <label>Not Recommended For (comma separated conditions)</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={newIng.notRecommendedFor} 
+                  onChange={e => setNewIng({ ...newIng, notRecommendedFor: e.target.value })} 
+                />
+              </div>
+              <div className="form-group">
+                <label>Benefits (comma separated)</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  value={newIng.benefits} 
+                  onChange={e => setNewIng({ ...newIng, benefits: e.target.value })} 
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Add</button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

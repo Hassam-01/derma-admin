@@ -17,6 +17,7 @@ export const Products: React.FC = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [loadingProduct, setLoadingProduct] = useState(false);
 
   const fetchProducts = async () => {
     try {
@@ -47,9 +48,20 @@ export const Products: React.FC = () => {
     }
   };
 
-  const handleEdit = (product: any) => {
-    setEditingProduct(product);
-    setIsModalOpen(true);
+  const handleEdit = async (product: any) => {
+    try {
+      setLoadingProduct(true);
+      // Fetch the full product so the modal has all fields
+      // (the list endpoint returns a stripped analytics shape)
+      const res = await api.get(`/products/${product.id}`);
+      setEditingProduct(res.data.data);
+      setIsModalOpen(true);
+    } catch (err) {
+      console.error('Failed to load product details', err);
+      alert('Could not load product details. Please try again.');
+    } finally {
+      setLoadingProduct(false);
+    }
   };
 
   const handleAdd = () => {
@@ -132,12 +144,30 @@ export const Products: React.FC = () => {
                       </span>
                     </td>
                     <td>{product.stock} units</td>
-                    <td>${product.price}</td>
-                    {isVendor && <td>${product.analytics?.revenue || 0}</td>}
+                    <td>
+                      {product.discountPrice && (!product.discountEndDate || new Date(product.discountEndDate) > new Date()) ? (
+                        <div>
+                          <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.8rem', marginRight: '0.5rem' }}>
+                            PKR {product.price}
+                          </span>
+                          <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>
+                            PKR {product.discountPrice}
+                          </span>
+                          {product.discountPercent && (
+                            <span className="badge badge-success" style={{ marginLeft: '0.5rem' }}>
+                              {product.discountPercent}% OFF
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span>PKR {product.price}</span>
+                      )}
+                    </td>
+                    {isVendor && <td>PKR {product.analytics?.revenue || 0}</td>}
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-secondary btn-icon" title="Edit" onClick={() => handleEdit(product)}>
-                          <Edit2 size={16} />
+                        <button className="btn btn-secondary btn-icon" title="Edit" onClick={() => handleEdit(product)} disabled={loadingProduct}>
+                          {loadingProduct ? <span style={{ fontSize: '0.7rem' }}>...</span> : <Edit2 size={16} />}
                         </button>
                         <button className="btn btn-danger btn-icon" title="Archive" onClick={() => handleArchive(product.id)}>
                           <Archive size={16} />
