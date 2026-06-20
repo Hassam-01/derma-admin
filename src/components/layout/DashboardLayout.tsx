@@ -4,11 +4,13 @@ import { Sidebar } from './Sidebar';
 
 export const DashboardLayout: React.FC = () => {
   return (
-    <div className="app-container animate-fade-in">
+    <div className="app-shell">
       <Sidebar />
-      <main className="main-content">
-        <Outlet />
-      </main>
+      <div className="main-wrap">
+        <main className="page-content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

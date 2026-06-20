@@ -1,94 +1,94 @@
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, Trophy, ArrowUp, ArrowDown } from 'lucide-react';
+import { TrendingUp, Trophy } from 'lucide-react';
 import { api } from '../lib/api';
 
 export const Leaderboard: React.FC = () => {
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // BE accepts: 'revenue' | 'units_sold' | 'orders'
   const [sortBy, setSortBy] = useState('revenue');
 
   useEffect(() => {
-    const fetchLeaderboard = async () => {
+    const fetch = async () => {
       try {
         setLoading(true);
         const res = await api.get('/executive/analytics/vendor-leaderboard', {
-          params: { sortBy, limit: 20 }
+          params: { sortBy, limit: 20 },
         });
-        setVendors(res.data.data || []);
+        // Response: array of { vendorId, firstName, lastName, email, totalProducts, revenue, unitsSold, orderCount }
+        setVendors(res.data.data ?? []);
       } catch (err) {
-        console.error('Failed to fetch leaderboard', err);
+        console.error('Leaderboard fetch failed', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchLeaderboard();
+    fetch();
   }, [sortBy]);
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div className="flex-between">
+    <div className="fade-in">
+      <div className="page-header">
         <div>
-          <h2>Vendor Leaderboard</h2>
-          <p className="text-muted mt-md">Track performance across all active vendors.</p>
+          <div className="page-title">Vendor Leaderboard</div>
+          <div className="page-subtitle">Performance ranking across all active vendors</div>
         </div>
-        <select 
-          className="form-control" 
-          style={{ width: 'auto' }} 
-          value={sortBy} 
+        <select
+          className="form-control"
+          style={{ width: 'auto' }}
+          value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
         >
-          <option value="revenue">Sort by Revenue</option>
-          <option value="units">Sort by Units Sold</option>
-          <option value="orders">Sort by Orders</option>
+          <option value="revenue">By Revenue</option>
+          <option value="units_sold">By Units Sold</option>
+          <option value="orders">By Orders</option>
         </select>
       </div>
 
-      <div className="glass-panel">
+      <div className="card" style={{ padding: 0 }}>
         {loading ? (
-          <div className="flex-center text-muted" style={{ padding: '3rem' }}>Loading leaderboard...</div>
+          <div className="loading-row"><div className="spinner" /> Loading…</div>
         ) : vendors.length > 0 ? (
-          <div className="table-wrapper">
+          <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Rank</th>
+                  <th style={{ width: 48 }}>#</th>
                   <th>Vendor</th>
+                  <th>Products</th>
                   <th>Revenue</th>
                   <th>Units Sold</th>
                   <th>Orders</th>
-                  <th>Trend</th>
                 </tr>
               </thead>
               <tbody>
-                {vendors.map((vendor, index) => (
-                  <tr key={vendor.id}>
+                {vendors.map((v: any, i: number) => (
+                  <tr key={v.vendorId ?? i}>
                     <td>
-                      <div className="flex-center" style={{ width: '32px', height: '32px', borderRadius: '50%', background: index < 3 ? 'rgba(245, 158, 11, 0.1)' : 'var(--bg-surface-elevated)', color: index < 3 ? 'var(--warning)' : 'var(--text-muted)' }}>
-                        {index === 0 ? <Trophy size={16} /> : index + 1}
-                      </div>
+                      {i === 0 ? (
+                        <span style={{ color: '#F59E0B' }}><Trophy size={16} /></span>
+                      ) : (
+                        <span className="text-muted">{i + 1}</span>
+                      )}
                     </td>
                     <td>
-                      <div style={{ fontWeight: 500 }}>{vendor.name}</div>
-                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>{vendor.email}</div>
+                      {/* BE returns firstName + lastName, NOT name */}
+                      <div style={{ fontWeight: 500 }}>{v.firstName} {v.lastName}</div>
+                      <div className="text-sm text-muted">{v.email}</div>
                     </td>
-                    <td style={{ fontWeight: 600 }}>PKR {vendor.revenue || 0}</td>
-                    <td>{vendor.unitsSold || 0}</td>
-                    <td>{vendor.orderCount || 0}</td>
-                    <td>
-                      <span className={`badge ${vendor.trend > 0 ? 'badge-success' : 'badge-danger'}`} style={{ display: 'inline-flex', gap: '0.25rem' }}>
-                        {vendor.trend > 0 ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
-                        {Math.abs(vendor.trend || 0)}%
-                      </span>
-                    </td>
+                    <td className="text-muted">{v.totalProducts}</td>
+                    <td style={{ fontWeight: 600 }}>PKR {(v.revenue ?? 0).toLocaleString()}</td>
+                    <td>{v.unitsSold ?? 0}</td>
+                    <td>{v.orderCount ?? 0}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="flex-center text-muted" style={{ padding: '3rem', flexDirection: 'column', gap: '1rem' }}>
-            <TrendingUp size={48} opacity={0.5} />
-            <p>No vendor data available for the selected period.</p>
+          <div className="empty-state">
+            <TrendingUp size={36} color="var(--text-3)" />
+            <p>No vendor data available</p>
           </div>
         )}
       </div>

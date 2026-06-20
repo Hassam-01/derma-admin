@@ -1,107 +1,85 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { Megaphone, Trash2, Power } from 'lucide-react';
+import { Megaphone, Trash2, Power, Plus, X } from 'lucide-react';
 import { api } from '../lib/api';
 
 export const Announcements: React.FC = () => {
   const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [newAnnouncement, setNewAnnouncement] = useState({ title: '', body: '' });
+  const [loading, setLoading]             = useState(true);
+  const [showModal, setShowModal]         = useState(false);
+  const [form, setForm]                   = useState({ title: '', body: '' });
+  const [saving, setSaving]               = useState(false);
 
-  const fetchAnnouncements = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/announcement');
-      setAnnouncements(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch announcements', err);
-    } finally {
-      setLoading(false);
-    }
+  const fetch = async () => {
+    try { setLoading(true); const res = await api.get('/announcement'); setAnnouncements(res.data.data ?? []); }
+    catch { /* silent */ } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchAnnouncements();
-  }, []);
+  useEffect(() => { fetch(); }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const create = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     try {
-      await api.post('/announcement', newAnnouncement);
+      await api.post('/announcement', form);
       setShowModal(false);
-      setNewAnnouncement({ title: '', body: '' });
-      fetchAnnouncements();
-    } catch (err) {
-      console.error('Failed to create announcement', err);
-      alert('Failed to create announcement');
-    }
+      setForm({ title: '', body: '' });
+      fetch();
+    } catch { alert('Failed to create'); } finally { setSaving(false); }
   };
 
-  const handleToggle = async (id: string, currentActive: boolean) => {
-    try {
-      await api.patch(`/announcement/${id}/toggle`, { isActive: !currentActive });
-      fetchAnnouncements();
-    } catch (err) {
-      console.error('Failed to toggle announcement', err);
-    }
+  const toggle = async (id: string, isActive: boolean) => {
+    try { await api.patch(`/announcement/${id}/toggle`, { isActive: !isActive }); fetch(); }
+    catch { /* silent */ }
   };
 
-  const handleDelete = async (id: string) => {
+  const del = async (id: string) => {
     if (!window.confirm('Delete this announcement?')) return;
-    try {
-      await api.delete(`/announcement/${id}`);
-      fetchAnnouncements();
-    } catch (err) {
-      console.error('Failed to delete announcement', err);
-    }
+    try { await api.delete(`/announcement/${id}`); fetch(); }
+    catch { /* silent */ }
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div className="flex-between">
+    <div className="fade-in">
+      <div className="page-header">
         <div>
-          <h2>Announcements</h2>
-          <p className="text-muted mt-md">Manage app-wide announcements for users.</p>
+          <div className="page-title">Announcements</div>
+          <div className="page-subtitle">App-wide banners shown to all users</div>
         </div>
         <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          <Megaphone size={20} /> Create Announcement
+          <Plus size={14} /> New Announcement
         </button>
       </div>
 
-      <div className="glass-panel">
+      <div className="card" style={{ padding: 0 }}>
         {loading ? (
-          <div className="flex-center text-muted" style={{ padding: '3rem' }}>Loading announcements...</div>
+          <div className="loading-row"><div className="spinner" /> Loading…</div>
         ) : announcements.length > 0 ? (
-          <div className="table-wrapper">
+          <div className="table-wrap">
             <table>
               <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Body</th>
-                  <th>Status</th>
-                  <th>Created At</th>
-                  <th>Actions</th>
-                </tr>
+                <tr><th>Title</th><th>Body</th><th>Status</th><th>Created</th><th></th></tr>
               </thead>
               <tbody>
                 {announcements.map((ann) => (
                   <tr key={ann.id}>
-                    <td style={{ fontWeight: 500 }}>{ann.title}</td>
-                    <td style={{ maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ann.body}</td>
+                    <td style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{ann.title}</td>
+                    <td className="text-muted" style={{ maxWidth: 300 }}>
+                      <span className="truncate" style={{ display: 'block' }}>{ann.body}</span>
+                    </td>
                     <td>
-                      <span className={`badge ${ann.isActive ? 'badge-success' : 'badge-secondary'}`}>
+                      <span className={`badge ${ann.isActive ? 'badge-success' : 'badge-neutral'}`}>
                         {ann.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td>{new Date(ann.createdAt).toLocaleDateString()}</td>
+                    <td className="text-muted">{new Date(ann.createdAt).toLocaleDateString()}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className={`btn btn-sm ${ann.isActive ? 'btn-secondary' : 'btn-success'}`} onClick={() => handleToggle(ann.id, ann.isActive)}>
-                          <Power size={16} /> {ann.isActive ? 'Deactivate' : 'Activate'}
+                      <div className="flex gap-2">
+                        <button className="btn btn-ghost btn-icon btn-sm" title={ann.isActive ? 'Deactivate' : 'Activate'} onClick={() => toggle(ann.id, ann.isActive)}>
+                          <Power size={14} />
                         </button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(ann.id)}>
-                          <Trash2 size={16} /> Delete
+                        <button className="btn btn-ghost btn-icon btn-sm" style={{ color: 'var(--danger)' }} onClick={() => del(ann.id)}>
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -111,45 +89,34 @@ export const Announcements: React.FC = () => {
             </table>
           </div>
         ) : (
-          <div className="flex-center text-muted" style={{ padding: '3rem', flexDirection: 'column', gap: '1rem' }}>
-            <Megaphone size={48} opacity={0.5} />
-            <p>No announcements found.</p>
+          <div className="empty-state">
+            <Megaphone size={36} color="var(--text-3)" />
+            <p>No announcements yet</p>
           </div>
         )}
       </div>
 
-      {/* Create Announcement Modal */}
       {showModal && ReactDOM.createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content glass-panel" style={{ width: '450px' }}>
-            <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
-              <h3>Create Announcement</h3>
-              <button className="btn-icon" onClick={() => setShowModal(false)}>Ã—</button>
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">New Announcement</div>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowModal(false)}><X size={16} /></button>
             </div>
-            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group">
-                <label>Title</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  value={newAnnouncement.title} 
-                  onChange={e => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })} 
-                  required 
-                />
+            <form onSubmit={create}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Title *</label>
+                  <input className="form-control" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Body *</label>
+                  <textarea className="form-control" rows={4} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} required />
+                </div>
               </div>
-              <div className="form-group">
-                <label>Body</label>
-                <textarea 
-                  className="form-control" 
-                  rows={4}
-                  value={newAnnouncement.body} 
-                  onChange={e => setNewAnnouncement({ ...newAnnouncement, body: e.target.value })} 
-                  required 
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+              <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Create</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Creating…' : 'Create'}</button>
               </div>
             </form>
           </div>

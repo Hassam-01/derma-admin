@@ -1,146 +1,135 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, LayoutDashboard, Package, TrendingUp, Users, MapPin, Tag, ShoppingCart, FolderTree, FlaskConical, Settings, Megaphone } from 'lucide-react';
+import {
+  LayoutDashboard, Package, ShoppingCart, Users, FolderTree,
+  FlaskConical, Tag, MapPin, Megaphone, Settings, TrendingUp,
+  LogOut, UserCheck,
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Role } from '../../types/auth';
+
+interface NavItem {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+}
+
+interface NavSection {
+  label?: string;
+  items: NavItem[];
+}
 
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   const isVendor = user?.role === Role.VENDOR;
-  const isExec = user?.role === Role.EXECUTIVE;
-  
-  const basePath = isVendor ? '/vendor' : '/executive';
+  const base     = isVendor ? '/vendor' : '/executive';
+
+  const handleLogout = () => { logout(); navigate('/login'); };
+
+  const sections: NavSection[] = isVendor
+    ? [
+        {
+          label: 'Overview',
+          items: [
+            { to: `${base}/dashboard`, icon: <LayoutDashboard size={16} />, label: 'Dashboard' },
+            { to: `${base}/orders`,    icon: <ShoppingCart size={16} />,    label: 'Orders' },
+          ],
+        },
+        {
+          label: 'Catalog',
+          items: [
+            { to: `${base}/products`,  icon: <Package size={16} />,  label: 'Products' },
+            { to: `${base}/coupons`,   icon: <Tag size={16} />,      label: 'Coupons' },
+          ],
+        },
+        {
+          label: 'Insights',
+          items: [
+            { to: `${base}/customers`, icon: <Users size={16} />,  label: 'Customers' },
+            { to: `${base}/locations`, icon: <MapPin size={16} />, label: 'Locations' },
+          ],
+        },
+      ]
+    : [
+        {
+          label: 'Overview',
+          items: [
+            { to: `${base}/dashboard`,   icon: <LayoutDashboard size={16} />, label: 'Dashboard' },
+            { to: `${base}/orders`,      icon: <ShoppingCart size={16} />,    label: 'Orders' },
+            { to: `${base}/leaderboard`, icon: <TrendingUp size={16} />,      label: 'Leaderboard' },
+          ],
+        },
+        {
+          label: 'Catalog',
+          items: [
+            { to: `${base}/products`,    icon: <Package size={16} />,      label: 'Products' },
+            { to: `${base}/categories`,  icon: <FolderTree size={16} />,   label: 'Categories' },
+            { to: `${base}/ingredients`, icon: <FlaskConical size={16} />, label: 'Ingredients' },
+            { to: `${base}/coupons`,     icon: <Tag size={16} />,          label: 'Coupons' },
+          ],
+        },
+        {
+          label: 'Insights',
+          items: [
+            { to: `${base}/customers`,   icon: <Users size={16} />,        label: 'Customers' },
+            { to: `${base}/locations`,   icon: <MapPin size={16} />,       label: 'Locations' },
+          ],
+        },
+        {
+          label: 'Admin',
+          items: [
+            { to: `${base}/users`,         icon: <UserCheck size={16} />,  label: 'Users' },
+            { to: `${base}/announcements`, icon: <Megaphone size={16} />,  label: 'Announcements' },
+            { to: `${base}/settings`,      icon: <Settings size={16} />,   label: 'Settings' },
+          ],
+        },
+      ];
+
+  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : '??';
 
   return (
-    <aside style={{ width: '260px', background: 'var(--bg-surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '2rem', borderBottom: '1px solid var(--border)' }}>
-        <h2 className="text-gradient">DermaLens</h2>
-        <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{isVendor ? 'Vendor Portal' : 'Executive Portal'}</p>
+    <aside className="sidebar">
+      {/* Logo */}
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-name">DermaLens</div>
+        <div className="sidebar-logo-role">{isVendor ? 'Vendor Portal' : 'Executive Portal'}</div>
       </div>
 
-      <nav style={{ flex: 1, padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto' }}>
-        <NavLink 
-          to={`${basePath}/dashboard`} 
-          className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-          style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-        >
-          <LayoutDashboard size={20} /> Dashboard
-        </NavLink>
-        
-        {isExec && (
-          <NavLink 
-            to={`${basePath}/leaderboard`} 
-            className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-            style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-          >
-            <TrendingUp size={20} /> Leaderboard
-          </NavLink>
-        )}
-
-        {isExec && (
-          <NavLink 
-            to={`${basePath}/users`} 
-            className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-            style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-          >
-            <Users size={20} /> Users
-          </NavLink>
-        )}
-
-        <NavLink 
-          to={`${basePath}/orders`} 
-          className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-          style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-        >
-          <ShoppingCart size={20} /> Orders
-        </NavLink>
-
-        <NavLink 
-          to={`${basePath}/products`} 
-          className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-          style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-        >
-          <Package size={20} /> Products
-        </NavLink>
-
-        {isExec && (
-          <>
-            <NavLink 
-              to={`${basePath}/categories`} 
-              className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-              style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-            >
-              <FolderTree size={20} /> Categories
-            </NavLink>
-            <NavLink 
-              to={`${basePath}/ingredients`} 
-              className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-              style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-            >
-              <FlaskConical size={20} /> Ingredients
-            </NavLink>
-          </>
-        )}
-
-        <NavLink 
-          to={`${basePath}/customers`} 
-          className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-          style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-        >
-          <Users size={20} /> Customers
-        </NavLink>
-
-        <NavLink 
-          to={`${basePath}/locations`} 
-          className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-          style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-        >
-          <MapPin size={20} /> Locations
-        </NavLink>
-
-        <NavLink 
-          to={`${basePath}/coupons`} 
-          className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-          style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-        >
-          <Tag size={20} /> Coupons
-        </NavLink>
-
-        {isExec && (
-          <NavLink 
-            to={`${basePath}/announcements`} 
-            className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-            style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-          >
-            <Megaphone size={20} /> Announcements
-          </NavLink>
-        )}
-
-        {isExec && (
-          <NavLink 
-            to={`${basePath}/settings`} 
-            className={({isActive}) => `btn ${isActive ? 'btn-primary' : 'btn-secondary'}`} 
-            style={({ isActive }) => ({ justifyContent: 'flex-start', border: 'none', background: isActive ? undefined : 'transparent' })}
-          >
-            <Settings size={20} /> Settings
-          </NavLink>
-        )}
+      {/* Nav */}
+      <nav className="sidebar-nav">
+        {sections.map((section, si) => (
+          <div key={si}>
+            {section.label && (
+              <div className="sidebar-section-label">{section.label}</div>
+            )}
+            {section.items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+              >
+                {item.icon}
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+        ))}
       </nav>
 
-      <div style={{ padding: '1.5rem 1rem', borderTop: '1px solid var(--border)' }}>
-        <div style={{ marginBottom: '1rem', padding: '0 0.5rem' }}>
-          <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{user?.name || user?.email}</div>
-          <div className="badge badge-primary" style={{ marginTop: '0.25rem' }}>{user?.role}</div>
+      {/* Footer */}
+      <div className="sidebar-footer">
+        <div className="sidebar-user">
+          <div className="sidebar-avatar">{initials}</div>
+          <div style={{ minWidth: 0 }}>
+            <div className="sidebar-user-name">{user?.email}</div>
+            <div className="sidebar-user-role">{user?.role}</div>
+          </div>
         </div>
-        <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'flex-start', border: 'none' }} onClick={handleLogout}>
-          <LogOut size={20} /> Sign Out
+        <button className="nav-link" onClick={handleLogout} style={{ gap: 8 }}>
+          <LogOut size={16} />
+          Sign Out
         </button>
       </div>
     </aside>

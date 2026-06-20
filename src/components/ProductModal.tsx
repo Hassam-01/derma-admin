@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { X, UploadCloud } from 'lucide-react';
 import { api } from '../lib/api';
+import { compressImageToWebp } from '../lib/image';
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -13,35 +14,25 @@ interface ProductModalProps {
 export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSaved, product }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    price: '',
-    stock: '',
-    categoryId: '',
-    sku: '',
-    imageUrls: [] as string[],
-    tags: '',
-    ingredientIds: [] as string[],
-    discountPrice: '',
-    discountPercent: '',
-    discountEndDate: '',
+  const [form, setForm] = useState({
+    name: '', description: '', price: '', stock: '', categoryId: '', sku: '',
+    imageUrls: [] as string[], tags: '', ingredientIds: [] as string[],
+    discountPrice: '', discountPercent: '', discountEndDate: '',
   });
-  
+
   const [categories, setCategories] = useState<any[]>([]);
-  const [ingredientsList, setIngredientsList] = useState<any[]>([]);
-  
+  const [ingredients, setIngredients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-      api.get('/products/categories').then(res => setCategories(res.data.data || []));
-      api.get('/ingredients?status=APPROVED').then(res => setIngredientsList(res.data.data || []));
+      api.get('/products/categories').then((res) => setCategories(res.data.data ?? []));
+      api.get('/ingredients', { params: { status: 'APPROVED' } }).then((res) => setIngredients(res.data.data ?? []));
 
       if (product) {
-        setFormData({
+        setForm({
           name: product.name || '',
           description: product.description || '',
           price: product.price?.toString() || '',
@@ -53,12 +44,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onS
           ingredientIds: product.ingredients?.map((pi: any) => pi.ingredientId) || [],
           discountPrice: product.discountPrice?.toString() || '',
           discountPercent: product.discountPercent?.toString() || '',
-          discountEndDate: product.discountEndDate ? new Date(product.discountEndDate).toISOString().slice(0,16) : '',
+          discountEndDate: product.discountEndDate ? new Date(product.discountEndDate).toISOString().slice(0, 16) : '',
         });
       } else {
-        setFormData({
-          name: '', description: '', price: '', stock: '', categoryId: '', sku: '', imageUrls: [], tags: '', ingredientIds: [],
-          discountPrice: '', discountPercent: '', discountEndDate: ''
+        setForm({
+          name: '', description: '', price: '', stock: '', categoryId: '', sku: '',
+          imageUrls: [], tags: '', ingredientIds: [],
+          discountPrice: '', discountPercent: '', discountEndDate: '',
         });
       }
       setError('');
@@ -67,216 +59,185 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onS
 
   if (!isOpen) return null;
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      setUploadingImage(true);
+      setUploading(true);
       setError('');
-      
-      // 1. Get presigned URL
-      const { data } = await api.post('/products/presigned-url', {
-        filename: file.name,
-        contentType: file.type
-      });
+      const compressedFile = await compressImageToWebp(file, 0.8);
+      const { data } = await api.post('/products/presigned-url', { filename: compressedFile.name, contentType: compressedFile.type });
       const { uploadUrl, publicUrl } = data.data;
 
-      // 2. Upload file directly to S3/Cloudflare R2
-      await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type,
-        },
-        body: file,
-      });
-
-      // 3. Add public URL to state
-      setFormData(prev => ({ ...prev, imageUrls: [...prev.imageUrls, publicUrl] }));
-    } catch (err) {
-      console.error('Image upload failed', err);
+      await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': compressedFile.type }, body: compressedFile });
+      setForm((p) => ({ ...p, imageUrls: [...p.imageUrls, publicUrl] }));
+    } catch {
       setError('Failed to upload image. Ensure AWS settings are configured.');
     } finally {
-      setUploadingImage(false);
+      setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const removeImage = (index: number) => {
-    setFormData(prev => {
-      const newUrls = [...prev.imageUrls];
-      newUrls.splice(index, 1);
-      return { ...prev, imageUrls: newUrls };
+  const removeImg = (i: number) => {
+    setForm((p) => {
+      const u = [...p.imageUrls];
+      u.splice(i, 1);
+      return { ...p, imageUrls: u };
     });
   };
 
-  const toggleIngredient = (id: string) => {
-    setFormData(prev => {
-      const isSelected = prev.ingredientIds.includes(id);
-      if (isSelected) {
-        return { ...prev, ingredientIds: prev.ingredientIds.filter(i => i !== id) };
-      } else {
-        return { ...prev, ingredientIds: [...prev.ingredientIds, id] };
-      }
-    });
+  const toggleIng = (id: string) => {
+    setForm((p) => ({
+      ...p,
+      ingredientIds: p.ingredientIds.includes(id) ? p.ingredientIds.filter((x) => x !== id) : [...p.ingredientIds, id],
+    }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
       const payload = {
-        name: formData.name,
-        description: formData.description,
-        price: Number(formData.price),
-        stock: Number(formData.stock),
-        categoryId: formData.categoryId,
-        sku: formData.sku,
-        imageUrls: formData.imageUrls,
-        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-        ingredientIds: formData.ingredientIds,
-        discountPrice: formData.discountPrice ? Number(formData.discountPrice) : undefined,
-        discountPercent: formData.discountPercent ? Number(formData.discountPercent) : undefined,
-        discountEndDate: formData.discountEndDate ? new Date(formData.discountEndDate).toISOString() : undefined,
+        name: form.name,
+        description: form.description,
+        price: Number(form.price),
+        stock: Number(form.stock),
+        categoryId: form.categoryId,
+        sku: form.sku,
+        imageUrls: form.imageUrls,
+        tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        ingredientIds: form.ingredientIds,
+        discountPrice: form.discountPrice ? Number(form.discountPrice) : undefined,
+        discountPercent: form.discountPercent ? Number(form.discountPercent) : undefined,
+        discountEndDate: form.discountEndDate ? new Date(form.discountEndDate).toISOString() : undefined,
       };
 
-      if (product) {
-        await api.patch(`/products/${product.id}`, payload);
-      } else {
-        await api.post('/products', payload);
-      }
+      if (product) await api.patch(`/products/${product.id}`, payload);
+      else await api.post('/products', payload);
+
       onSaved();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save product');
+      setError(err?.response?.data?.message || 'Failed to save product');
     } finally {
       setLoading(false);
     }
   };
 
   return ReactDOM.createPortal(
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-      backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center'
-    }}>
-      <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', padding: '2rem', position: 'relative' }}>
-        <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
-          <h3>{product ? 'Edit Product' : 'Add Product'}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-            <X size={24} />
-          </button>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title">{product ? 'Edit Product' : 'Add Product'}</div>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={16} /></button>
         </div>
 
-        {error && <div className="badge badge-danger" style={{ display: 'block', marginBottom: '1rem', padding: '0.75rem' }}>{error}</div>}
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Name</label>
-              <input type="text" className="form-control" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Category</label>
-              <select className="form-control" value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: e.target.value})} required>
-                <option value="">Select a category</option>
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+        {error && (
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', padding: '8px 12px', margin: '0 24px 16px', borderRadius: 6, color: 'var(--danger)', fontSize: 13 }}>
+            {error}
           </div>
+        )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Price (PKR)</label>
-              <input type="number" step="0.01" className="form-control" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Stock</label>
-              <input type="number" className="form-control" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} required />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">SKU</label>
-              <input type="text" className="form-control" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} placeholder="Optional" />
-            </div>
-          </div>
-
-          <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
-            <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#3b82f6' }}>Promotional Discount (Optional)</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Discount Price</label>
-                <input type="number" step="0.01" className="form-control" value={formData.discountPrice} onChange={e => setFormData({...formData, discountPrice: e.target.value})} placeholder="e.g. 450" />
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div className="modal-body">
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Name *</label>
+                <input className="form-control" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
               </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Discount %</label>
-                <input type="number" className="form-control" value={formData.discountPercent} onChange={e => setFormData({...formData, discountPercent: e.target.value})} placeholder="e.g. 15" />
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">End Date</label>
-                <input type="datetime-local" className="form-control" value={formData.discountEndDate} onChange={e => setFormData({...formData, discountEndDate: e.target.value})} />
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Category *</label>
+                <select className="form-control" value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })} required>
+                  <option value="">Select a category</option>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               </div>
             </div>
-          </div>
 
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Description</label>
-            <textarea className="form-control" rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} required />
-          </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 16 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Price (PKR) *</label>
+                <input type="number" step="0.01" className="form-control" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Stock *</label>
+                <input type="number" className="form-control" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} required />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">SKU</label>
+                <input className="form-control" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="Optional" />
+              </div>
+            </div>
 
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Images</label>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-              {formData.imageUrls.map((url, idx) => (
-                <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '4px', overflow: 'hidden' }}>
-                  <img src={url} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <button type="button" onClick={() => removeImage(idx)} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', padding: '2px', cursor: 'pointer' }}>
-                    <X size={12} />
-                  </button>
+            <div style={{ marginTop: 24, padding: 16, background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>Promotional Discount (Optional)</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Discount Price</label>
+                  <input type="number" step="0.01" className="form-control" value={form.discountPrice} onChange={(e) => setForm({ ...form, discountPrice: e.target.value })} />
                 </div>
-              ))}
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex-center" 
-                style={{ width: '80px', height: '80px', borderRadius: '4px', border: '1px dashed var(--border)', cursor: 'pointer', background: 'var(--bg-surface)' }}
-              >
-                {uploadingImage ? <span className="text-muted" style={{ fontSize: '0.75rem' }}>Uploading...</span> : <UploadCloud size={24} className="text-muted" />}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Discount %</label>
+                  <input type="number" className="form-control" value={form.discountPercent} onChange={(e) => setForm({ ...form, discountPercent: e.target.value })} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">End Date</label>
+                  <input type="datetime-local" className="form-control" value={form.discountEndDate} onChange={(e) => setForm({ ...form, discountEndDate: e.target.value })} />
+                </div>
               </div>
             </div>
-            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImageUpload} />
-          </div>
 
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Ingredients</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '100px', overflowY: 'auto', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '4px' }}>
-              {ingredientsList.map(ing => (
-                <label key={ing.id} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', margin: 0, padding: '0.25rem 0.5rem', background: 'var(--bg-surface-elevated)', borderRadius: '4px', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={formData.ingredientIds.includes(ing.id)} 
-                    onChange={() => toggleIngredient(ing.id)} 
-                  />
-                  <span style={{ fontSize: '0.875rem' }}>{ing.name}</span>
-                </label>
-              ))}
-              {ingredientsList.length === 0 && <span className="text-muted text-sm">No approved ingredients available.</span>}
+            <div className="form-group" style={{ marginTop: 16 }}>
+              <label className="form-label">Description *</label>
+              <textarea className="form-control" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
             </div>
+
+            <div className="form-group">
+              <label className="form-label">Images</label>
+              <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+                {form.imageUrls.map((url, i) => (
+                  <div key={i} style={{ position: 'relative', width: 64, height: 64, borderRadius: 6, overflow: 'hidden' }}>
+                    <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button type="button" onClick={() => removeImg(i)} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', padding: 2, cursor: 'pointer' }}>
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+                <div onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center clickable" style={{ width: 64, height: 64, borderRadius: 6, border: '1px dashed var(--border)', background: 'var(--surface-2)' }}>
+                  {uploading ? <div className="spinner" style={{ width: 16, height: 16, borderWidth: 1 }} /> : <UploadCloud size={20} color="var(--text-3)" />}
+                </div>
+              </div>
+              <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleUpload} />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Ingredients</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 120, overflowY: 'auto', padding: 8, border: '1px solid var(--border)', borderRadius: 6 }}>
+                {ingredients.map((ing) => (
+                  <label key={ing.id} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0, padding: '4px 8px', background: 'var(--surface-2)', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
+                    <input type="checkbox" checked={form.ingredientIds.includes(ing.id)} onChange={() => toggleIng(ing.id)} />
+                    {ing.name}
+                  </label>
+                ))}
+                {ingredients.length === 0 && <span className="text-muted text-sm">No approved ingredients.</span>}
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Tags (comma separated)</label>
+              <input className="form-control" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="e.g. acne, oily-skin" />
+            </div>
+
           </div>
 
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Tags (comma separated)</label>
-            <input type="text" className="form-control" value={formData.tags} onChange={e => setFormData({...formData, tags: e.target.value})} placeholder="e.g. acne, oily-skin" />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+          <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={loading || uploadingImage}>
-              {loading ? 'Saving...' : 'Save Product'}
-            </button>
+            <button type="submit" className="btn btn-primary" disabled={loading || uploading}>{loading ? 'Saving…' : 'Save Product'}</button>
           </div>
         </form>
       </div>

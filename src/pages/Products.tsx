@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Package, Search, Plus, Archive, Edit2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,107 +8,86 @@ import { ProductModal } from '../components/ProductModal';
 export const Products: React.FC = () => {
   const { user } = useAuth();
   const isVendor = user?.role === Role.VENDOR;
-  const endpoint = isVendor ? '/vendor/products' : '/executive/analytics/products';
+  const endpoint = isVendor ? '/vendor/products' : '/products';
 
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [products, setProducts]       = useState<any[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [loadingProduct, setLoadingProduct] = useState(false);
 
-  const fetchProducts = async () => {
+  const [isModalOpen, setIsModalOpen]       = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
+
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       const params: any = { search };
       if (statusFilter) params.status = statusFilter;
       const res = await api.get(endpoint, { params });
-      setProducts(res.data.data?.items || res.data.data?.data || res.data.data || []);
+      const body = res.data.data;
+      setProducts(body?.items ?? body?.data ?? body ?? []);
     } catch (err) {
       console.error('Failed to fetch products', err);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchProducts();
   }, [endpoint, search, statusFilter]);
 
-  const handleArchive = async (id: string) => {
-    if (!window.confirm('Are you sure you want to archive this product?')) return;
-    try {
-      await api.delete(`/products/${id}`);
-      fetchProducts();
-    } catch (err) {
-      console.error('Failed to archive product', err);
-      alert('Failed to archive product');
-    }
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  const archive = async (id: string) => {
+    if (!window.confirm('Archive this product?')) return;
+    try { await api.delete(`/products/${id}`); fetchProducts(); }
+    catch { alert('Failed to archive'); }
   };
 
-  const handleEdit = async (product: any) => {
+  const edit = async (product: any) => {
     try {
-      setLoadingProduct(true);
-      // Fetch the full product so the modal has all fields
-      // (the list endpoint returns a stripped analytics shape)
+      setLoadingProduct(product.id);
       const res = await api.get(`/products/${product.id}`);
       setEditingProduct(res.data.data);
       setIsModalOpen(true);
-    } catch (err) {
-      console.error('Failed to load product details', err);
-      alert('Could not load product details. Please try again.');
+    } catch {
+      alert('Could not load product details');
     } finally {
-      setLoadingProduct(false);
+      setLoadingProduct(null);
     }
   };
 
-  const handleAdd = () => {
-    setEditingProduct(null);
-    setIsModalOpen(true);
-  };
+  const add = () => { setEditingProduct(null); setIsModalOpen(true); };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div className="flex-between">
+    <div className="fade-in">
+      <div className="page-header">
         <div>
-          <h2>Products Management</h2>
-          <p className="text-muted mt-md">Manage your product catalog, view analytics and stock.</p>
+          <div className="page-title">Products</div>
+          <div className="page-subtitle">Manage catalog, view stock and revenue</div>
         </div>
         {isVendor && (
-          <button className="btn btn-primary" onClick={handleAdd}>
-            <Plus size={20} /> Add Product
+          <button className="btn btn-primary" onClick={add}>
+            <Plus size={14} /> Add Product
           </button>
         )}
       </div>
 
-      <div className="glass-panel">
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-          <div className="form-group" style={{ margin: 0, flex: 1, maxWidth: '400px', position: 'relative' }}>
-            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input 
-              type="text" 
-              className="form-control" 
-              placeholder="Search products..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ paddingLeft: '2.75rem' }}
-            />
-          </div>
-          {isVendor && (
-            <select className="form-control" style={{ width: 'auto' }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="ARCHIVED">Archived</option>
-            </select>
-          )}
+      <div className="toolbar" style={{ flexWrap: 'nowrap' }}>
+        <div className="form-group" style={{ margin: 0, flex: 1, maxWidth: 320, position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+          <input className="form-control" placeholder="Search products…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingLeft: 34 }} />
         </div>
+        <select className="form-control" style={{ width: 'auto' }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="">All Statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="ARCHIVED">Archived</option>
+        </select>
+      </div>
 
+      <div className="card" style={{ padding: 0 }}>
         {loading ? (
-          <div className="flex-center text-muted" style={{ padding: '3rem' }}>Loading products...</div>
+          <div className="loading-row"><div className="spinner" /> Loading…</div>
         ) : products.length > 0 ? (
-          <div className="table-wrapper">
+          <div className="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -117,60 +96,54 @@ export const Products: React.FC = () => {
                   <th>Stock</th>
                   <th>Price</th>
                   {isVendor && <th>Revenue</th>}
-                  <th>Actions</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
-                  <tr key={product.id}>
+                {products.map((p) => (
+                  <tr key={p.id}>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-surface-elevated)', overflow: 'hidden' }}>
-                          {product.imageUrls?.[0] ? (
-                            <img src={product.imageUrls[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <div className="flex items-center gap-3">
+                        <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--surface-2)', overflow: 'hidden', flexShrink: 0 }}>
+                          {p.imageUrls?.[0] ? (
+                            <img src={p.imageUrls[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
-                            <div className="flex-center" style={{ height: '100%' }}><Package size={20} className="text-muted" /></div>
+                            <div className="flex items-center justify-center w-full" style={{ height: '100%' }}><Package size={16} color="var(--text-3)" /></div>
                           )}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 500 }}>{product.name}</div>
-                          <div className="text-muted" style={{ fontSize: '0.75rem' }}>{product.category?.name || 'Uncategorized'}</div>
+                          <div style={{ fontWeight: 500 }}>{p.name}</div>
+                          <div className="text-sm text-muted">{p.category?.name ?? 'Uncategorized'}</div>
                         </div>
                       </div>
                     </td>
                     <td>
-                      <span className={`badge ${product.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}`}>
-                        {product.status}
-                      </span>
+                      <span className={`badge ${p.status === 'ACTIVE' ? 'badge-success' : 'badge-neutral'}`}>{p.status}</span>
                     </td>
-                    <td>{product.stock} units</td>
                     <td>
-                      {product.discountPrice && (!product.discountEndDate || new Date(product.discountEndDate) > new Date()) ? (
+                      <div className={p.stock < 10 ? 'text-danger' : ''}>{p.stock} units</div>
+                    </td>
+                    <td>
+                      {p.discountPrice && (!p.discountEndDate || new Date(p.discountEndDate) > new Date()) ? (
                         <div>
-                          <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.8rem', marginRight: '0.5rem' }}>
-                            PKR {product.price}
-                          </span>
-                          <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>
-                            PKR {product.discountPrice}
-                          </span>
-                          {product.discountPercent && (
-                            <span className="badge badge-success" style={{ marginLeft: '0.5rem' }}>
-                              {product.discountPercent}% OFF
-                            </span>
-                          )}
+                          <div style={{ color: 'var(--text)', fontWeight: 600 }}>PKR {p.discountPrice}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            <span style={{ textDecoration: 'line-through', color: 'var(--text-3)', fontSize: 11 }}>PKR {p.price}</span>
+                            {p.discountPercent && <span className="badge badge-success" style={{ fontSize: 10, padding: '0 4px' }}>-{p.discountPercent}%</span>}
+                          </div>
                         </div>
                       ) : (
-                        <span>PKR {product.price}</span>
+                        <div style={{ fontWeight: 500 }}>PKR {p.price}</div>
                       )}
                     </td>
-                    {isVendor && <td>PKR {product.analytics?.revenue || 0}</td>}
+                    {isVendor && <td style={{ fontWeight: 600 }}>PKR {p.analytics?.revenue ?? 0}</td>}
                     <td>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-secondary btn-icon" title="Edit" onClick={() => handleEdit(product)} disabled={loadingProduct}>
-                          {loadingProduct ? <span style={{ fontSize: '0.7rem' }}>...</span> : <Edit2 size={16} />}
+                      <div className="flex gap-2 justify-end">
+                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => edit(p)} disabled={loadingProduct === p.id}>
+                          {loadingProduct === p.id ? <div className="spinner" style={{ width: 14, height: 14, borderWidth: 1 }} /> : <Edit2 size={14} />}
                         </button>
-                        <button className="btn btn-danger btn-icon" title="Archive" onClick={() => handleArchive(product.id)}>
-                          <Archive size={16} />
+                        <button className="btn btn-ghost btn-icon btn-sm" style={{ color: 'var(--danger)' }} onClick={() => archive(p.id)}>
+                          <Archive size={14} />
                         </button>
                       </div>
                     </td>
@@ -180,19 +153,14 @@ export const Products: React.FC = () => {
             </table>
           </div>
         ) : (
-          <div className="flex-center text-muted" style={{ padding: '3rem', flexDirection: 'column', gap: '1rem' }}>
-            <Package size={48} opacity={0.5} />
-            <p>No products found matching your criteria.</p>
+          <div className="empty-state">
+            <Package size={36} color="var(--text-3)" />
+            <p>No products found</p>
           </div>
         )}
       </div>
 
-      <ProductModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSaved={fetchProducts} 
-        product={editingProduct} 
-      />
+      <ProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSaved={fetchProducts} product={editingProduct} />
     </div>
   );
 };

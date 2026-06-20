@@ -1,61 +1,83 @@
-import React, { useEffect, useState } from 'react';
-import { Users as UsersIcon, Shield, CheckCircle, XCircle } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Users as UsersIcon } from 'lucide-react';
 import { api } from '../lib/api';
 
-export const Users: React.FC = () => {
-  const [users, setUsers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+const ROLES = ['CUSTOMER', 'VENDOR', 'EXECUTIVE'];
 
-  const fetchUsers = async () => {
+export const Users: React.FC = () => {
+  const [users, setUsers]           = useState<any[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [roleFilter, setRoleFilter] = useState('');
+  const [saving, setSaving]         = useState<string | null>(null);
+
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get('/users');
-      setUsers(res.data.data?.data || res.data.data || []);
+      const params: any = {};
+      if (roleFilter) params.role = roleFilter;
+      const res = await api.get('/users', { params });
+      const body = res.data.data;
+      // GET /users returns { data: User[], total }
+      setUsers(Array.isArray(body) ? body : (body?.data ?? []));
     } catch (err) {
       console.error('Failed to fetch users', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [roleFilter]);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  const handleStatusChange = async (userId: string, currentStatus: boolean) => {
+  const changeStatus = async (userId: string, isActive: boolean) => {
+    setSaving(userId + '-status');
     try {
-      await api.put(`/users/${userId}/change-status`, { isActive: !currentStatus });
+      await api.put(`/users/${userId}/change-status`, { isActive });
       fetchUsers();
-    } catch (err) {
-      console.error('Failed to change user status', err);
+    } catch {
       alert('Failed to update status');
+    } finally {
+      setSaving(null);
     }
   };
 
-  const handleRoleChange = async (userId: string, e: React.ChangeEvent<HTMLSelectElement>) => {
+  const changeRole = async (userId: string, role: string) => {
+    setSaving(userId + '-role');
     try {
-      await api.put(`/users/${userId}/change-role`, { role: e.target.value });
+      await api.put(`/users/${userId}/change-role`, { role });
       fetchUsers();
-    } catch (err) {
-      console.error('Failed to change user role', err);
+    } catch {
       alert('Failed to update role');
+    } finally {
+      setSaving(null);
     }
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div className="flex-between">
+    <div className="fade-in">
+      <div className="page-header">
         <div>
-          <h2>Users Management</h2>
-          <p className="text-muted mt-md">Manage system users, roles, and status.</p>
+          <div className="page-title">Users</div>
+          <div className="page-subtitle">Manage accounts, roles, and status</div>
         </div>
       </div>
 
-      <div className="glass-panel">
+      <div className="toolbar">
+        <select
+          className="form-control"
+          style={{ width: 'auto' }}
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+        >
+          <option value="">All Roles</option>
+          {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </div>
+
+      <div className="card" style={{ padding: 0 }}>
         {loading ? (
-          <div className="flex-center text-muted" style={{ padding: '3rem' }}>Loading users...</div>
+          <div className="loading-row"><div className="spinner" /> Loading users…</div>
         ) : users.length > 0 ? (
-          <div className="table-wrapper">
+          <div className="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -70,20 +92,21 @@ export const Users: React.FC = () => {
               <tbody>
                 {users.map((u: any) => (
                   <tr key={u.id}>
-                    <td>
-                      <div style={{ fontWeight: 500 }}>{u.firstName} {u.lastName}</div>
+                    <td style={{ fontWeight: 500 }}>
+                      {u.firstName || u.lastName
+                        ? `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim()
+                        : <span className="text-muted">—</span>}
                     </td>
-                    <td>{u.email}</td>
+                    <td className="text-muted">{u.email}</td>
                     <td>
-                      <select 
-                        className="form-control" 
-                        style={{ padding: '0.25rem 0.5rem', height: 'auto', fontSize: '0.875rem', width: 'auto' }}
+                      <select
+                        className="form-control"
+                        style={{ width: 'auto', padding: '3px 6px', fontSize: 12 }}
                         value={u.role}
-                        onChange={(e) => handleRoleChange(u.id, e)}
+                        disabled={saving === u.id + '-role'}
+                        onChange={(e) => changeRole(u.id, e.target.value)}
                       >
-                        <option value="CUSTOMER">Customer</option>
-                        <option value="VENDOR">Vendor</option>
-                        <option value="EXECUTIVE">Executive</option>
+                        {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </td>
                     <td>
@@ -91,14 +114,14 @@ export const Users: React.FC = () => {
                         {u.isActive ? 'Active' : 'Suspended'}
                       </span>
                     </td>
-                    <td>{new Date(u.createdAt).toLocaleDateString()}</td>
+                    <td className="text-muted">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
                     <td>
-                      <button 
-                        className={`btn ${u.isActive ? 'btn-danger' : 'btn-primary'} btn-sm`}
-                        onClick={() => handleStatusChange(u.id, u.isActive)}
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                      <button
+                        className={`btn btn-sm ${u.isActive ? 'btn-danger' : 'btn-primary'}`}
+                        disabled={saving === u.id + '-status'}
+                        onClick={() => changeStatus(u.id, !u.isActive)}
                       >
-                        {u.isActive ? 'Suspend' : 'Activate'}
+                        {saving === u.id + '-status' ? '…' : u.isActive ? 'Suspend' : 'Activate'}
                       </button>
                     </td>
                   </tr>
@@ -107,9 +130,9 @@ export const Users: React.FC = () => {
             </table>
           </div>
         ) : (
-          <div className="flex-center text-muted" style={{ padding: '3rem', flexDirection: 'column', gap: '1rem' }}>
-            <UsersIcon size={48} opacity={0.5} />
-            <p>No users found.</p>
+          <div className="empty-state">
+            <UsersIcon size={36} color="var(--text-3)" />
+            <p>No users found</p>
           </div>
         )}
       </div>

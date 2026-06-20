@@ -1,105 +1,99 @@
-import React, { useEffect, useState } from 'react';
-import { Users, Search } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Users } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Role } from '../types/auth';
 
 export const Customers: React.FC = () => {
-  const { user } = useAuth();
-  const isVendor = user?.role === Role.VENDOR;
-  const endpoint = isVendor ? '/vendor/customers' : '/executive/analytics/customers';
+  const { user }  = useAuth();
+  const isVendor  = user?.role === Role.VENDOR;
+  const endpoint  = isVendor ? '/vendor/customers' : '/executive/analytics/customers';
 
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [customers, setCustomers]   = useState<any[]>([]);
   const [repeatRate, setRepeatRate] = useState(0);
+  const [total, setTotal]           = useState(0);
+  const [loading, setLoading]       = useState(true);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get(endpoint);
-      const data = res.data.data;
-      setCustomers(data?.data || data?.items || []);
-      setRepeatRate(data?.repeatCustomerRate || 0);
+      const body = res.data.data;
+      // Both endpoints return { data: CustomerInsight[], total, repeatCustomerRate }
+      setCustomers(body?.data ?? []);
+      setTotal(body?.total ?? 0);
+      setRepeatRate(body?.repeatCustomerRate ?? 0);
     } catch (err) {
-      console.error('Failed to fetch customers', err);
+      console.error('Customers fetch failed', err);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchCustomers();
   }, [endpoint]);
 
+  useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
+
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div className="flex-between">
+    <div className="fade-in">
+      <div className="page-header">
         <div>
-          <h2>Customers Insights</h2>
-          <p className="text-muted mt-md">View your top customers and their purchasing behavior.</p>
+          <div className="page-title">Customers</div>
+          <div className="page-subtitle">Top customers by spend and order count</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-        <div className="stat-card glass-panel animate-slide-up">
-          <div className="stat-icon" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
-            <Users size={24} />
-          </div>
-          <div className="stat-content">
-            <h3 className="stat-value">{repeatRate}%</h3>
-            <p className="stat-label">Repeat Customer Rate</p>
-          </div>
+      {/* KPI strip */}
+      <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 16 }}>
+        <div className="kpi-card">
+          <div className="kpi-label">Unique Customers</div>
+          <div className="kpi-value">{total}</div>
         </div>
-        <div className="stat-card glass-panel animate-slide-up" style={{ animationDelay: '0.1s' }}>
-          <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
-            <Users size={24} />
-          </div>
-          <div className="stat-content">
-            <h3 className="stat-value">{customers.length}</h3>
-            <p className="stat-label">Total Unique Customers (Page 1)</p>
-          </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Repeat Rate</div>
+          <div className="kpi-value">{repeatRate}%</div>
+          <div className="kpi-sub">made more than 1 order</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Showing (Page 1)</div>
+          <div className="kpi-value">{customers.length}</div>
         </div>
       </div>
 
-      <div className="glass-panel">
+      <div className="card" style={{ padding: 0 }}>
         {loading ? (
-          <div className="flex-center text-muted" style={{ padding: '3rem' }}>Loading customers...</div>
+          <div className="loading-row"><div className="spinner" /> Loading customers…</div>
         ) : customers.length > 0 ? (
-          <div className="table-wrapper">
+          <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Customer</th>
                   <th>Email</th>
-                  <th>Location</th>
-                  <th>Total Orders</th>
+                  <th>City</th>
+                  <th>Orders</th>
                   <th>Total Spent</th>
                   <th>Last Order</th>
                 </tr>
               </thead>
               <tbody>
-                {customers.map((customer: any, idx: number) => {
-                  const name = `${customer.firstName} ${customer.lastName}`;
-                  const lastOrder = customer.lastOrderAt ? new Date(customer.lastOrderAt).toLocaleDateString() : '-';
-                  
-                  return (
-                    <tr key={customer.customerId || customer.id || idx}>
-                      <td>{name}</td>
-                      <td>{customer.email}</td>
-                      <td>{customer.city || '-'}</td>
-                      <td>{customer.totalOrders}</td>
-                      <td>PKR {customer.totalSpent}</td>
-                      <td>{lastOrder}</td>
-                    </tr>
-                  )
-                })}
+                {customers.map((c: any, idx: number) => (
+                  <tr key={c.customerId ?? c.id ?? idx}>
+                    <td style={{ fontWeight: 500 }}>{c.firstName} {c.lastName}</td>
+                    <td className="text-muted">{c.email}</td>
+                    <td className="text-muted">{c.city ?? '—'}</td>
+                    <td>{c.totalOrders}</td>
+                    <td style={{ fontWeight: 500 }}>PKR {(c.totalSpent ?? 0).toLocaleString()}</td>
+                    <td className="text-muted">
+                      {c.lastOrderAt ? new Date(c.lastOrderAt).toLocaleDateString() : '—'}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="flex-center text-muted" style={{ padding: '3rem', flexDirection: 'column', gap: '1rem' }}>
-            <Users size={48} opacity={0.5} />
-            <p>No customers found.</p>
+          <div className="empty-state">
+            <Users size={36} color="var(--text-3)" />
+            <p>No customer data available</p>
           </div>
         )}
       </div>
