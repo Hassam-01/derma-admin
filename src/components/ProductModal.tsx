@@ -142,7 +142,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onS
           </div>
         )}
 
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <form onSubmit={submit}>
           <div className="modal-body">
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
