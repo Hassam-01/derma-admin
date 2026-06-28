@@ -7,7 +7,7 @@ export const Announcements: React.FC = () => {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading]             = useState(true);
   const [showModal, setShowModal]         = useState(false);
-  const [form, setForm]                   = useState({ title: '', body: '' });
+  const [form, setForm]                   = useState({ title: '', body: '', type: 'APP' });
   const [saving, setSaving]               = useState(false);
 
   const fetch = async () => {
@@ -23,7 +23,7 @@ export const Announcements: React.FC = () => {
     try {
       await api.post('/announcement', form);
       setShowModal(false);
-      setForm({ title: '', body: '' });
+      setForm({ title: '', body: '', type: 'APP' });
       fetch();
     } catch { alert('Failed to create'); } finally { setSaving(false); }
   };
@@ -58,7 +58,7 @@ export const Announcements: React.FC = () => {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Title</th><th>Body</th><th>Status</th><th>Created</th><th></th></tr>
+                <tr><th>Title</th><th>Body</th><th>Target</th><th>Status</th><th>Created</th><th></th></tr>
               </thead>
               <tbody>
                 {announcements.map((ann) => (
@@ -66,6 +66,11 @@ export const Announcements: React.FC = () => {
                     <td style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{ann.title}</td>
                     <td className="text-muted" style={{ maxWidth: 300 }}>
                       <span className="truncate" style={{ display: 'block' }}>{ann.body}</span>
+                    </td>
+                    <td>
+                      <span className={`badge ${ann.type === 'SHOP' ? 'badge-primary' : 'badge-neutral'}`}>
+                        {ann.type === 'SHOP' ? 'Shop Only' : 'App-Wide'}
+                      </span>
                     </td>
                     <td>
                       <span className={`badge ${ann.isActive ? 'badge-success' : 'badge-neutral'}`}>
@@ -108,6 +113,13 @@ export const Announcements: React.FC = () => {
                 <div className="form-group">
                   <label className="form-label">Title *</label>
                   <input className="form-control" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Target Page *</label>
+                  <select className="form-control" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                    <option value="APP">App Wide (Excluding Shop)</option>
+                    <option value="SHOP">Shop Screen Only</option>
+                  </select>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Body *</label>

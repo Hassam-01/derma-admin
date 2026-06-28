@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, Users, FolderTree,
   FlaskConical, Tag, MapPin, Megaphone, Settings, TrendingUp,
-  LogOut, UserCheck,
+  LogOut, UserCheck, Activity, Image,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Role } from '../../types/auth';
@@ -75,6 +75,7 @@ export const Sidebar: React.FC = () => {
           items: [
             { to: `${base}/customers`,   icon: <Users size={16} />,        label: 'Customers' },
             { to: `${base}/locations`,   icon: <MapPin size={16} />,       label: 'Locations' },
+            { to: `${base}/scans`,       icon: <Image size={16} />,        label: 'Scans' },
           ],
         },
         {
@@ -83,6 +84,12 @@ export const Sidebar: React.FC = () => {
             { to: `${base}/users`,         icon: <UserCheck size={16} />,  label: 'Users' },
             { to: `${base}/announcements`, icon: <Megaphone size={16} />,  label: 'Announcements' },
             { to: `${base}/settings`,      icon: <Settings size={16} />,   label: 'Settings' },
+          ],
+        },
+        {
+          label: 'System',
+          items: [
+            { to: `${base}/system-health`, icon: <Activity size={16} />,   label: 'System Health' },
           ],
         },
       ];

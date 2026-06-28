@@ -16,6 +16,8 @@ import { Locations } from './pages/Locations';
 import { Coupons } from './pages/Coupons';
 import { Settings } from './pages/Settings';
 import { Announcements } from './pages/Announcements';
+import { Scans } from './pages/Scans';
+import SystemMonitoring from './pages/SystemMonitoring';
 import { Role } from './types/auth';
 
 const App: React.FC = () => {
@@ -58,8 +60,10 @@ const App: React.FC = () => {
             <Route path="customers" element={<Customers />} />
             <Route path="locations" element={<Locations />} />
             <Route path="coupons" element={<Coupons />} />
+            <Route path="scans" element={<Scans />} />
             <Route path="settings" element={<Settings />} />
             <Route path="announcements" element={<Announcements />} />
+            <Route path="system-health" element={<SystemMonitoring />} />
             <Route path="*" element={<div>Coming Soon</div>} />
           </Route>
 
