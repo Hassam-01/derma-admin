@@ -11,22 +11,18 @@ const severityBadge: Record<string, string> = {
   SEVERE: 'badge-cancelled',
 };
 
-const severityRank: Record<string, number> = {
-  MILD: 1,
-  MODERATE: 2,
-  PRONOUNCED: 3,
-  SEVERE: 4,
-};
 
-interface ScanIssue {
+interface ScanObservation {
   id: string;
-  issueType: string;
-  severity: string;
-  confidence: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  concernId: string | null;
+  measurementStatus: string;
+  severity: number | null;
+  confidence: number | null;
+  confidenceType: string;
+  confidenceIsCalibrated: boolean;
+  region: string | null;
+  spread: number | null;
+  modelVersion?: string | null;
 }
 
 interface ScanUser {
@@ -51,7 +47,7 @@ interface ScanRecord {
   wrinkleNotes?: string | null;
   eyeBagNotes?: string | null;
   createdAt?: string;
-  issues: ScanIssue[];
+  observations: ScanObservation[];
   profile?: ScanProfile;
 }
 
@@ -140,16 +136,16 @@ function formatPercent(value: number | null | undefined, fractionDigits = 0) {
   return `${(value * 100).toFixed(fractionDigits)}%`;
 }
 
-function issueArea(issue: ScanIssue) {
-  return Math.max(0, issue.width) * Math.max(0, issue.height);
+function observationSpread(observation: ScanObservation) {
+  return Math.max(0, observation.spread ?? 0);
 }
 
-function issueCenter(issue: ScanIssue) {
-  return {
-    x: issue.x + issue.width / 2,
-    y: issue.y + issue.height / 2,
-  };
+function isMeasuredObservation(
+  observation: ScanObservation,
+): observation is ScanObservation & { severity: number } {
+  return observation.measurementStatus === 'measured' && observation.severity != null;
 }
+
 
 function spreadLabel(area: number) {
   const percentArea = area * 100;
@@ -160,36 +156,34 @@ function spreadLabel(area: number) {
   return 'Extensive';
 }
 
-function regionLabel(issue: ScanIssue) {
-  const type = (issue.issueType ?? '').toLowerCase();
-  const center = issueCenter(issue);
-
-  if (type.includes('left eye bag')) return 'Left under-eye';
-  if (type.includes('right eye bag')) return 'Right under-eye';
-  if (type.includes('under-eye area') || type.includes('eye bag')) return 'Under-eye area';
-  if (type.includes('wrinkle')) return 'Face texture map';
-
-  const horizontal = center.x < 0.33 ? 'Left' : center.x > 0.66 ? 'Right' : 'Center';
-  const vertical = center.y < 0.33 ? 'Upper' : center.y > 0.66 ? 'Lower' : 'Mid';
-
-  return `${vertical} ${horizontal} face`;
+function regionLabel(observation: ScanObservation) {
+  return observation.region ? toTitleCase(observation.region) : 'Not specified';
 }
 
-function strongestSeverity(issues: ScanIssue[]) {
-  return issues.reduce<string>((best, issue) => {
-    const current = (issue.severity ?? '').toUpperCase();
-    if (!best) return current;
-    return (severityRank[current] ?? 0) > (severityRank[best] ?? 0) ? current : best;
-  }, '');
+function severityLabel(value: number | null | undefined) {
+  if (value == null) return 'Unknown';
+  if (value >= 0.8) return 'Severe';
+  if (value >= 0.6) return 'Pronounced';
+  if (value >= 0.3) return 'Moderate';
+  return 'Mild';
 }
 
-function averageConfidence(issues: ScanIssue[]) {
-  if (issues.length === 0) return 0;
-  return issues.reduce((sum, issue) => sum + (issue.confidence ?? 0), 0) / issues.length;
+function strongestSeverity(observations: ScanObservation[]) {
+  const strongest = observations.reduce<number | null>((best, observation) => {
+    if (!isMeasuredObservation(observation)) return best;
+    return best == null || observation.severity > best ? observation.severity : best;
+  }, null);
+  return severityLabel(strongest);
 }
 
-function totalCoverage(issues: ScanIssue[]) {
-  return issues.reduce((sum, issue) => sum + issueArea(issue), 0);
+function averageConfidence(observations: ScanObservation[]) {
+  const measured = observations.filter((observation) => isMeasuredObservation(observation) && observation.confidence != null);
+  if (measured.length === 0) return 0;
+  return measured.reduce((sum, observation) => sum + (observation.confidence ?? 0), 0) / measured.length;
+}
+
+function totalCoverage(observations: ScanObservation[]) {
+  return observations.filter(isMeasuredObservation).reduce((sum, observation) => sum + observationSpread(observation), 0);
 }
 
 function extractWrinkleCoverage(scan: ScanRecord) {
@@ -225,20 +219,20 @@ const ScanDetailModal: React.FC<ScanDetailModalProps> = ({ scan, onClose }) => {
 
   const wrinkleCoverage = useMemo(() => extractWrinkleCoverage(scan), [scan]);
 
-  const issueSummary = useMemo(() => {
-    const issues = Array.isArray(scan.issues) ? scan.issues : [];
-    const nonWrinkleIssues = issues.filter(
-      (issue) => !(issue.issueType ?? '').toLowerCase().includes('wrinkle'),
+  const observationSummary = useMemo(() => {
+    const observations = Array.isArray(scan.observations) ? scan.observations : [];
+    const nonWrinkleObservations = observations.filter(
+      (observation) => !(observation.concernId ?? '').toLowerCase().includes('wrinkle'),
     );
-    const nonWrinkleCoverage = totalCoverage(nonWrinkleIssues);
+    const nonWrinkleCoverage = totalCoverage(nonWrinkleObservations);
 
     return {
-      strongestSeverity: strongestSeverity(issues),
-      averageConfidence: averageConfidence(issues),
+      strongestSeverity: strongestSeverity(observations),
+      averageConfidence: averageConfidence(observations),
       totalCoverage: nonWrinkleCoverage,
       spread: spreadLabel(nonWrinkleCoverage),
     };
-  }, [scan.issues]);
+  }, [scan.observations]);
 
   useEffect(() => {
     let active = true;
@@ -322,29 +316,27 @@ const ScanDetailModal: React.FC<ScanDetailModalProps> = ({ scan, onClose }) => {
 
           <div className="form-label" style={{ marginBottom: 8 }}>Condition Summary</div>
           <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-            {summaryStat('Detected conditions', String(scan.issues?.length ?? 0))}
-            {summaryStat('Strongest severity', toTitleCase(issueSummary.strongestSeverity || 'Unknown'))}
-            {summaryStat('Average confidence', formatPercent(issueSummary.averageConfidence, 0))}
-            {summaryStat('Estimated spread', issueSummary.totalCoverage > 0 ? `${issueSummary.spread} (${formatPercent(issueSummary.totalCoverage, 1)})` : 'Condition-specific')}
+            {summaryStat('Measured conditions', String((scan.observations || []).filter(isMeasuredObservation).length))}
+            {summaryStat('Strongest severity', observationSummary.strongestSeverity)}
+            {summaryStat('Average confidence', formatPercent(observationSummary.averageConfidence, 0))}
+            {summaryStat('Estimated spread', observationSummary.totalCoverage > 0 ? `${observationSummary.spread} (${formatPercent(observationSummary.totalCoverage, 1)})` : 'Condition-specific')}
             {summaryStat('Wrinkle mask coverage', wrinkleCoverage != null ? formatPercent(wrinkleCoverage, 1) : 'Not available')}
           </div>
 
           <hr className="divider" />
 
-          <div className="form-label" style={{ marginBottom: 8 }}>Detected Conditions</div>
-          {Array.isArray(scan.issues) && scan.issues.length > 0 ? (
+          <div className="form-label" style={{ marginBottom: 8 }}>Scan Observations</div>
+          {Array.isArray(scan.observations) && scan.observations.length > 0 ? (
             <div style={{ display: 'grid', gap: 10 }}>
-              {scan.issues.map((issue) => {
-                const area = issueArea(issue);
-                const center = issueCenter(issue);
-                const spread = spreadLabel(area);
-                const normalizedType = (issue.issueType ?? '').toLowerCase();
-                const isWrinkle = normalizedType.includes('wrinkle');
-                const isEyeBag = normalizedType.includes('under-eye') || normalizedType.includes('eye bag');
+              {scan.observations.map((observation) => {
+                const spread = spreadLabel(observationSpread(observation));
+                const severity = severityLabel(observation.severity);
+                const concernId = (observation.concernId ?? 'unknown').toLowerCase();
+                const isWrinkle = concernId.includes('wrinkle');
 
                 return (
                   <div
-                    key={issue.id}
+                    key={observation.id}
                     style={{
                       border: '1px solid var(--border)',
                       borderRadius: 'var(--radius-md)',
@@ -354,36 +346,27 @@ const ScanDetailModal: React.FC<ScanDetailModalProps> = ({ scan, onClose }) => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
                       <div>
-                        <div style={{ fontWeight: 700 }}>{toTitleCase(issue.issueType)}</div>
+                        <div style={{ fontWeight: 700 }}>{toTitleCase(observation.concernId)}</div>
                         <div className="text-sm text-muted" style={{ marginTop: 4 }}>
-                          {regionLabel(issue)}
+                          {regionLabel(observation)}
                         </div>
                       </div>
-                      <span className={`badge ${severityBadge[(issue.severity ?? '').toUpperCase()] ?? 'badge-neutral'}`}>
-                        {toTitleCase(issue.severity || 'Unknown')}
+                      <span className={`badge ${severityBadge[severity.toUpperCase()] ?? 'badge-neutral'}`}>
+                        {severity}
                       </span>
                     </div>
 
                     <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginTop: 12 }}>
-                      {summaryStat('Confidence', formatPercent(issue.confidence, 0))}
+                      {summaryStat('Confidence', formatPercent(observation.confidence, 0))}
                       {summaryStat('Spread', isWrinkle ? 'Texture-based' : spread)}
-                      {summaryStat(
-                        isWrinkle ? 'Mask coverage' : isEyeBag ? 'ROI size' : 'Coverage',
-                        isWrinkle
-                          ? wrinkleCoverage != null
-                            ? formatPercent(wrinkleCoverage, 1)
-                            : 'Not available'
-                          : formatPercent(area, 1),
-                      )}
-                      {summaryStat('Center', `${formatPercent(center.x, 0)}, ${formatPercent(center.y, 0)}`)}
+                      {summaryStat('Measurement', toTitleCase(observation.measurementStatus))}
+                      {summaryStat('Confidence type', toTitleCase(observation.confidenceType))}
                     </div>
 
                     <div className="text-sm text-muted" style={{ marginTop: 10 }}>
-                      {isWrinkle
-                        ? 'Bounding box marks the facial texture analysis region. True wrinkle coverage comes from the model mask, not the full face box.'
-                        : isEyeBag
-                          ? `ROI box: x ${formatPercent(issue.x, 1)}, y ${formatPercent(issue.y, 1)}, w ${formatPercent(issue.width, 1)}, h ${formatPercent(issue.height, 1)}`
-                          : `Bounding box: x ${formatPercent(issue.x, 1)}, y ${formatPercent(issue.y, 1)}, w ${formatPercent(issue.width, 1)}, h ${formatPercent(issue.height, 1)}`}
+                      {observation.measurementStatus === 'measured'
+                        ? 'This concern has a model measurement recorded for the scan.'
+                        : 'This concern was not measured; the scanner recorded its availability status.'}
                     </div>
                   </div>
                 );
@@ -391,7 +374,7 @@ const ScanDetailModal: React.FC<ScanDetailModalProps> = ({ scan, onClose }) => {
             </div>
           ) : (
             <div className="empty-state" style={{ padding: '16px 0' }}>
-              <p>No issues stored for this scan.</p>
+              <p>No structured observations stored for this scan.</p>
             </div>
           )}
 
@@ -428,8 +411,8 @@ const ScanDetailModal: React.FC<ScanDetailModalProps> = ({ scan, onClose }) => {
             <div className="text-sm text-muted">Loading recommendations...</div>
           ) : recommendations ? (
             <div style={{ display: 'grid', gap: 14 }}>
-              {recommendations.recommendationsByConcern.map((group) => {
-                const avoid = recommendations.avoidByConcern.find((item) => item.concern === group.concern);
+              {(recommendations.recommendationsByConcern || []).map((group) => {
+                const avoid = (recommendations.avoidByConcern || []).find((item) => item.concern === group.concern);
 
                 return (
                   <div
@@ -458,7 +441,8 @@ const ScanDetailModal: React.FC<ScanDetailModalProps> = ({ scan, onClose }) => {
                       {(group.products ?? []).length > 0 ? (
                         <div style={{ display: 'grid', gap: 10 }}>
                           {(group.products ?? []).map((product) => {
-                            const concernMatch = product.matchedConcerns.find((item) => item.concern === group.concern);
+                            if (!product) return null;
+                            const concernMatch = (product.matchedConcerns || []).find((item) => item.concern === group.concern);
                             return (
                               <div
                                 key={product.productId}
@@ -553,8 +537,6 @@ export const Scans: React.FC = () => {
   const [selected, setSelected] = useState<ScanRecord | null>(null);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const [issueType, setIssueType] = useState('');
-  const [severity, setSeverity] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 20;
@@ -564,8 +546,6 @@ export const Scans: React.FC = () => {
       setLoading(true);
       const params: Record<string, string | number> = { page, limit };
       if (search.trim()) params.search = search.trim();
-      if (issueType) params.issueType = issueType;
-      if (severity) params.severity = severity;
 
       const res = await api.get('/executive/analytics/scans', { params });
       const body = res.data.data as ScanRecord[] | ScansResponse;
@@ -578,7 +558,7 @@ export const Scans: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [issueType, page, search, severity]);
+  }, [page, search]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -621,31 +601,6 @@ export const Scans: React.FC = () => {
         >
           Search
         </button>
-        <input
-          className="form-control"
-          style={{ width: 180 }}
-          placeholder="Issue type"
-          value={issueType}
-          onChange={(e) => {
-            setPage(1);
-            setIssueType(e.target.value);
-          }}
-        />
-        <select
-          className="form-control"
-          style={{ width: 180 }}
-          value={severity}
-          onChange={(e) => {
-            setPage(1);
-            setSeverity(e.target.value);
-          }}
-        >
-          <option value="">All Severities</option>
-          <option value="Mild">Mild</option>
-          <option value="Moderate">Moderate</option>
-          <option value="Pronounced">Pronounced</option>
-          <option value="Severe">Severe</option>
-        </select>
       </div>
 
       <div className="card" style={{ padding: 0 }}>
@@ -672,6 +627,7 @@ export const Scans: React.FC = () => {
                     .join(' ')
                     .trim();
 
+                  const measuredObservations = (scan.observations || []).filter(isMeasuredObservation);
                   return (
                     <tr key={scan.id}>
                       <td>
@@ -685,20 +641,20 @@ export const Scans: React.FC = () => {
                       <td style={{ fontWeight: 600 }}>{scan.overallScore ?? '-'}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {Array.isArray(scan.issues) && scan.issues.length > 0 ? (
-                            scan.issues.slice(0, 3).map((issue) => (
+                          {measuredObservations.length > 0 ? (
+                            measuredObservations.slice(0, 3).map((observation) => (
                               <span
-                                key={issue.id}
-                                className={`badge ${severityBadge[(issue.severity ?? '').toUpperCase()] ?? 'badge-neutral'}`}
+                                key={observation.id}
+                                className={`badge ${severityBadge[severityLabel(observation.severity).toUpperCase()] ?? 'badge-neutral'}`}
                               >
-                                {toTitleCase(issue.issueType)}
+                                {toTitleCase(observation.concernId)}
                               </span>
                             ))
                           ) : (
-                            <span className="text-muted">No issues</span>
+                            <span className="text-muted">No observations</span>
                           )}
-                          {Array.isArray(scan.issues) && scan.issues.length > 3 ? (
-                            <span className="badge badge-neutral">+{scan.issues.length - 3}</span>
+                          {measuredObservations.length > 3 ? (
+                            <span className="badge badge-neutral">+{measuredObservations.length - 3}</span>
                           ) : null}
                         </div>
                       </td>

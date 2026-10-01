@@ -29,7 +29,7 @@ export const Login: React.FC = () => {
         setError('Failed to request OTP. Please try again.');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to request OTP. Please check your email.');
+      setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to request OTP. Please check your email.');
     } finally {
       setLoading(false);
     }
@@ -59,7 +59,7 @@ export const Login: React.FC = () => {
         else setError('Unauthorized role');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid or expired OTP code.');
+      setError(err.response?.data?.error?.message || err.response?.data?.message || 'Invalid or expired OTP code.');
     } finally {
       setLoading(false);
     }
@@ -70,7 +70,7 @@ export const Login: React.FC = () => {
       <div className="card fade-in" style={{ width: '100%', maxWidth: 400, padding: 32 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)' }}>
-            DermaLens <span style={{ color: 'var(--primary)' }}>Admin</span>
+            La Morph <span style={{ color: 'var(--primary)' }}>Admin</span>
           </div>
           <div className="text-muted" style={{ marginTop: 4 }}>Vendor & Executive Portal</div>
         </div>

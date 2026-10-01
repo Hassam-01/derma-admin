@@ -100,7 +100,7 @@ export const Sidebar: React.FC = () => {
     <aside className="sidebar">
       {/* Logo */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-name">DermaLens</div>
+        <div className="sidebar-logo-name">La Morph</div>
         <div className="sidebar-logo-role">{isVendor ? 'Vendor Portal' : 'Executive Portal'}</div>
       </div>
 

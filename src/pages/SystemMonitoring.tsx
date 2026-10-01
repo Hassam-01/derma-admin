@@ -116,7 +116,7 @@ export default function SystemMonitoring() {
           <Activity className="h-6 w-6 text-indigo-600" />
           System Health Monitoring
         </h1>
-        <p className="text-slate-500">Live metrics and performance monitoring for the DermaLens backend API.</p>
+        <p className="text-slate-500">Live metrics and performance monitoring for the La Morph backend API.</p>
       </div>
 
       {error && (
