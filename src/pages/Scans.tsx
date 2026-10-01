@@ -312,6 +312,28 @@ const ScanDetailModal: React.FC<ScanDetailModalProps> = ({ scan, onClose }) => {
             <div className="detail-value">{scan.imageUrl ? 'Stored' : 'Not synced'}</div>
           </div>
 
+          {scan.imageUrl && (
+            <div style={{ marginTop: 16 }}>
+              <div className="form-label" style={{ marginBottom: 8 }}>Original Scan</div>
+              <img src={scan.imageUrl} alt="User Scan" style={{ maxWidth: '100%', borderRadius: 8 }} />
+            </div>
+          )}
+
+          {scan.annotatedImageUrl && (
+            <div style={{ marginTop: 16 }}>
+              <div className="form-label" style={{ marginBottom: 8 }}>Annotated Scan</div>
+              <img src={scan.annotatedImageUrl} alt="Annotated Scan" style={{ maxWidth: '100%', borderRadius: 8 }} />
+            </div>
+          )}
+
+          {scan.pdfUrl && (
+            <div style={{ marginTop: 16, marginBottom: 16 }}>
+              <a href={scan.pdfUrl} target="_blank" rel="noreferrer" className="btn btn-secondary">
+                View PDF Report
+              </a>
+            </div>
+          )}
+
           <hr className="divider" />
 
           <div className="form-label" style={{ marginBottom: 8 }}>Condition Summary</div>
