@@ -14,6 +14,10 @@ export const Products: React.FC = () => {
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  
+  const [page, setPage]               = useState(1);
+  const [total, setTotal]             = useState(0);
+  const [limit, setLimit]             = useState(10);
 
   const [isModalOpen, setIsModalOpen]       = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -22,19 +26,25 @@ export const Products: React.FC = () => {
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const params: any = { search };
+      const params: any = { search, page, limit };
       if (statusFilter) params.status = statusFilter;
       const res = await api.get(endpoint, { params });
       const body = res.data.data;
       setProducts(body?.items ?? body?.data ?? body ?? []);
+      setTotal(body?.total ?? 0);
     } catch (err) {
       console.error('Failed to fetch products', err);
     } finally {
       setLoading(false);
     }
-  }, [endpoint, search, statusFilter]);
+  }, [endpoint, search, statusFilter, page, limit]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  // Reset page when search or statusFilter changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
 
   const archive = async (id: string) => {
     if (!window.confirm('Archive this product?')) return;
@@ -156,6 +166,43 @@ export const Products: React.FC = () => {
           <div className="empty-state">
             <Package size={36} color="var(--text-3)" />
             <p>No products found</p>
+          </div>
+        )}
+        
+        {total > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <span className="text-sm text-muted">
+                Showing {Math.min((page - 1) * limit + 1, total)} to {Math.min(page * limit, total)} of {total} products
+              </span>
+              <select 
+                className="form-control" 
+                style={{ width: 'auto', padding: '4px 24px 4px 8px', fontSize: '13px', height: '28px', minHeight: '28px' }} 
+                value={limit} 
+                onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+              >
+                <option value={10}>10 / page</option>
+                <option value={20}>20 / page</option>
+                <option value={50}>50 / page</option>
+                <option value={100}>100 / page</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button 
+                className="btn btn-ghost btn-sm" 
+                disabled={page <= 1} 
+                onClick={() => setPage(p => p - 1)}
+              >
+                Previous
+              </button>
+              <button 
+                className="btn btn-ghost btn-sm" 
+                disabled={page >= Math.ceil(total / limit)} 
+                onClick={() => setPage(p => p + 1)}
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

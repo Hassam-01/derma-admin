@@ -18,7 +18,47 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onS
     name: '', description: '', price: '', stock: '', categoryId: '', sku: '',
     imageUrls: [] as string[], tags: '', ingredientIds: [] as string[],
     discountPrice: '', discountPercent: '', discountEndDate: '',
+    globalProductId: '',
   });
+
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [globalSearchResults, setGlobalSearchResults] = useState<any[]>([]);
+  const [isSearchingGlobal, setIsSearchingGlobal] = useState(false);
+  const [globalSearchDebounce, setGlobalSearchDebounce] = useState<NodeJS.Timeout | null>(null);
+
+  const handleGlobalSearch = (query: string) => {
+    setGlobalSearchQuery(query);
+    if (globalSearchDebounce) clearTimeout(globalSearchDebounce);
+    if (!query.trim()) {
+      setGlobalSearchResults([]);
+      return;
+    }
+    
+    setGlobalSearchDebounce(setTimeout(async () => {
+      setIsSearchingGlobal(true);
+      try {
+        const res = await api.get('/global-catalog/search', { params: { q: query, limit: 5 } });
+        const body = res.data?.data ?? res.data;
+        setGlobalSearchResults(body?.items ?? body?.data ?? body ?? []);
+      } catch (err) {
+        console.error('Failed to search global catalog', err);
+      } finally {
+        setIsSearchingGlobal(false);
+      }
+    }, 500));
+  };
+
+  const selectGlobalProduct = (gp: any) => {
+    setForm(f => ({
+      ...f,
+      name: gp.name || f.name,
+      description: gp.description || f.description,
+      imageUrls: gp.imageUrls?.length ? gp.imageUrls : f.imageUrls,
+      globalProductId: gp.id
+    }));
+    setGlobalSearchQuery('');
+    setGlobalSearchResults([]);
+  };
 
   const [categories, setCategories] = useState<any[]>([]);
   const [ingredients, setIngredients] = useState<any[]>([]);
@@ -45,12 +85,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onS
           discountPrice: product.discountPrice?.toString() || '',
           discountPercent: product.discountPercent?.toString() || '',
           discountEndDate: product.discountEndDate ? new Date(product.discountEndDate).toISOString().slice(0, 16) : '',
+          globalProductId: product.globalProductId || '',
         });
       } else {
         setForm({
           name: '', description: '', price: '', stock: '', categoryId: '', sku: '',
           imageUrls: [], tags: '', ingredientIds: [],
           discountPrice: '', discountPercent: '', discountEndDate: '',
+          globalProductId: '',
         });
       }
       setError('');
@@ -114,6 +156,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onS
         discountPrice: form.discountPrice ? Number(form.discountPrice) : undefined,
         discountPercent: form.discountPercent ? Number(form.discountPercent) : undefined,
         discountEndDate: form.discountEndDate ? new Date(form.discountEndDate).toISOString() : undefined,
+        globalProductId: form.globalProductId || undefined,
       };
 
       if (product) await api.patch(`/products/${product.id}`, payload);
@@ -145,6 +188,49 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onS
         <form onSubmit={submit}>
           <div className="modal-body">
             
+            {!product && (
+              <div style={{ marginBottom: 24, padding: 16, background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>Import from Global Catalog</div>
+                <div className="form-group" style={{ marginBottom: 0, position: 'relative' }}>
+                  <input
+                    className="form-control"
+                    placeholder="Search global products..."
+                    value={globalSearchQuery}
+                    onChange={(e) => handleGlobalSearch(e.target.value)}
+                  />
+                  {isSearchingGlobal && (
+                    <div style={{ position: 'absolute', right: 12, top: 10 }}>
+                      <div className="spinner" style={{ width: 14, height: 14, borderWidth: 1 }} />
+                    </div>
+                  )}
+                  {globalSearchResults.length > 0 && (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6,
+                      boxShadow: 'var(--shadow-lg)', marginTop: 4, maxHeight: 200, overflowY: 'auto'
+                    }}>
+                      {globalSearchResults.map((gp) => (
+                        <div
+                          key={gp.id}
+                          className="clickable"
+                          style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}
+                          onClick={() => selectGlobalProduct(gp)}
+                        >
+                          <div style={{ width: 32, height: 32, borderRadius: 4, overflow: 'hidden', flexShrink: 0, background: 'var(--surface-2)' }}>
+                            {gp.imageUrls?.[0] && <img src={gp.imageUrls[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{gp.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{gp.brand}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Name *</label>
