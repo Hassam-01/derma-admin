@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ShoppingCart, Users, FolderTree,
   FlaskConical, Tag, MapPin, Megaphone, Settings, TrendingUp,
-  LogOut, UserCheck, Activity, Image,
+  LogOut, UserCheck, Activity, Image, Globe,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Role } from '../../types/auth';
@@ -64,10 +64,11 @@ export const Sidebar: React.FC = () => {
         {
           label: 'Catalog',
           items: [
-            { to: `${base}/products`,    icon: <Package size={16} />,      label: 'Products' },
-            { to: `${base}/categories`,  icon: <FolderTree size={16} />,   label: 'Categories' },
-            { to: `${base}/ingredients`, icon: <FlaskConical size={16} />, label: 'Ingredients' },
-            { to: `${base}/coupons`,     icon: <Tag size={16} />,          label: 'Coupons' },
+            { to: `${base}/products`,       icon: <Package size={16} />,      label: 'Products' },
+            { to: `${base}/global-catalog`, icon: <Globe size={16} />,        label: 'Global Catalog' },
+            { to: `${base}/categories`,     icon: <FolderTree size={16} />,   label: 'Categories' },
+            { to: `${base}/ingredients`,    icon: <FlaskConical size={16} />, label: 'Ingredients' },
+            { to: `${base}/coupons`,        icon: <Tag size={16} />,          label: 'Coupons' },
           ],
         },
         {

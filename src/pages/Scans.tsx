@@ -47,6 +47,8 @@ interface ScanRecord {
   wrinkleNotes?: string | null;
   eyeBagNotes?: string | null;
   createdAt?: string;
+  annotatedImageUrl?: string | null;
+  pdfUrl?: string | null;
   observations: ScanObservation[];
   profile?: ScanProfile;
 }

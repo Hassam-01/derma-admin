@@ -6,6 +6,7 @@ import { DashboardLayout } from './components/layout/DashboardLayout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Products } from './pages/Products';
+import { GlobalCatalog } from './pages/GlobalCatalog';
 import { Leaderboard } from './pages/Leaderboard';
 import { Users } from './pages/Users';
 import { Orders } from './pages/Orders';
@@ -52,6 +53,7 @@ const App: React.FC = () => {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="products" element={<Products />} />
+            <Route path="global-catalog" element={<GlobalCatalog />} />
             <Route path="leaderboard" element={<Leaderboard />} />
             <Route path="users" element={<Users />} />
             <Route path="orders" element={<Orders />} />

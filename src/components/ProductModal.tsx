@@ -24,7 +24,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onS
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [globalSearchResults, setGlobalSearchResults] = useState<any[]>([]);
   const [isSearchingGlobal, setIsSearchingGlobal] = useState(false);
-  const [globalSearchDebounce, setGlobalSearchDebounce] = useState<NodeJS.Timeout | null>(null);
+  const [globalSearchDebounce, setGlobalSearchDebounce] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const handleGlobalSearch = (query: string) => {
     setGlobalSearchQuery(query);
