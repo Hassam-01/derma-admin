@@ -134,16 +134,16 @@ export const Products: React.FC = () => {
                       <div className={p.stock < 10 ? 'text-danger' : ''}>{p.stock} units</div>
                     </td>
                     <td>
-                      {p.discountPrice && (!p.discountEndDate || new Date(p.discountEndDate) > new Date()) ? (
+                      {(p.discountPrice ?? p.salePrice) && (!p.discountEndDate || new Date(p.discountEndDate) > new Date()) ? (
                         <div>
-                          <div style={{ color: 'var(--text)', fontWeight: 600 }}>PKR {p.discountPrice}</div>
+                          <div style={{ color: 'var(--text)', fontWeight: 600 }}>PKR {p.discountPrice ?? p.salePrice}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                            <span style={{ textDecoration: 'line-through', color: 'var(--text-3)', fontSize: 11 }}>PKR {p.price}</span>
+                            <span style={{ textDecoration: 'line-through', color: 'var(--text-3)', fontSize: 11 }}>PKR {p.price ?? p.listPrice}</span>
                             {p.discountPercent && <span className="badge badge-success" style={{ fontSize: 10, padding: '0 4px' }}>-{p.discountPercent}%</span>}
                           </div>
                         </div>
                       ) : (
-                        <div style={{ fontWeight: 500 }}>PKR {p.price}</div>
+                        <div style={{ fontWeight: 500 }}>PKR {p.price ?? p.listPrice}</div>
                       )}
                     </td>
                     {isVendor && <td style={{ fontWeight: 600 }}>PKR {p.analytics?.revenue ?? 0}</td>}
